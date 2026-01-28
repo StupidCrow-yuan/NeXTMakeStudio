@@ -1,0 +1,21 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: fdf24099655e6d1418265e3bc76ad2e7, type: 3}
+  m_Name: DepthAnythingV2Settings
+  m_EditorClassIdentifier: 
+  baseOnnxModel: {fileID: 0}
+  inputName: image
+  outputName: predicted_depth
+  inputSize: 384
+  useImagenetNorm: 1
+  preferGPU: 1
+  verboseLogging: 1

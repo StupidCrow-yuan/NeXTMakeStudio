@@ -1,0 +1,948 @@
+using UnityEngine;
+using UnityEngine.UI;
+using NeXTMake.UI.Core;
+using System.Collections.Generic;
+using NeXTMake.UI.TextureEffects;
+
+namespace NeXTMake.UI
+{
+    public class CanvasController : MonoBehaviour
+    {
+        public GameObject contextToolbar;
+        
+        // Position Info Fields
+        public Text posXText;
+        public Text posYText;
+        public Text widthText;
+        public Text heightText;
+        public Text rotationText;
+        public GameObject positionPanel; 
+        public Text canvasSizeText; 
+        public RectTransform bottomRuler;
+        public RectTransform rightRuler;
+        public GameObject layersListContainer; 
+        public GameObject editorArea; // Reference to main editor area for popups
+        public Image paperBackground; // For color syncing
+        public GameObject craftModeContainer; // For syncing selection
+        public GameObject printAreaListContainer; // Dynamic Print Area List in Global Panel
+        private bool useMaterialColorAsBackground = true;
+
+        [Header("Right Panel Context")]
+        public GameObject globalInfoPanel;  // Device settings, Print Bed, etc.
+        public GameObject layerInfoPanel;   // Position, Craft Mode, Ink Mode, etc. 
+
+        [Header("Popups")]
+        private GameObject activePopup;
+
+        public void ShowInfoPopup(string title)
+        {
+            if (activePopup != null) Destroy(activePopup);
+            activePopup = Modules.CanvasModule.CreateModalPopup(editorArea, title);
+        }
+
+        public void ShowColorPicker()
+        {
+            if (activePopup != null) Destroy(activePopup);
+            activePopup = Modules.CanvasModule.CreateColorPicker(editorArea);
+        }
+
+        [Header("Mini Preview")]
+        public GameObject miniPreviewPanel;
+        public GameObject customizePanel; // Area for uploading depth map
+        public RawImage miniPreviewImage;
+        public Model3DViewer miniModelViewer;
+        private GameObject miniDesignStage;
+        private float currentMiniZoom = 1.0f;
+
+        // Callbacks
+        public System.Action OnPreviewRequested;
+        public System.Action OnPrintRequested;
+
+        [Header("Canvas Interaction")]
+        public RectTransform paper; // The White Canvas area
+        public Text zoomText;
+        public Dropdown zoomDropdown;
+        
+        private GameObject currentSelection;
+        private GameObject rotationHandle;
+        private Outline currentOutline;
+
+        private float paperWidth = 600f;
+        private float paperHeight = 600f;
+        private float currentZoom = 1.0f;
+
+        private Vector2 lastMousePos;
+        private bool isPanning = false;
+        private bool handToolActive = false;
+
+        private CommandHistory commandHistory = new CommandHistory();
+
+        public void Undo() { commandHistory.Undo(); UpdateLayersPanel(); }
+        public void Redo() { commandHistory.Redo(); UpdateLayersPanel(); }
+
+        public void RecordMove(RectTransform rt, Vector2 oldPos, Vector2 newPos)
+        {
+            commandHistory.AddToHistory(new MoveCommand(rt, oldPos, newPos, UpdatePositionInfo));
+        }
+
+        public void RecordRotation(RectTransform rt, Quaternion oldRot, Quaternion newRot)
+        {
+            commandHistory.AddToHistory(new RotateCommand(rt, oldRot, newRot, UpdatePositionInfo));
+        }
+
+        public void RecordAdd(GameObject obj)
+        {
+            commandHistory.AddToHistory(new AddObjectCommand(obj, paper));
+            UpdateLayersPanel();
+            if (globalInfoPanel != null && globalInfoPanel.activeSelf) UpdatePrintAreaList();
+        }
+
+        public void RecordDelete(GameObject obj)
+        {
+            if (obj == null) return;
+            commandHistory.ExecuteCommand(new DeleteObjectCommand(obj, () => { 
+                UpdatePositionInfo(); 
+                UpdateLayersPanel(); 
+                if (globalInfoPanel != null && globalInfoPanel.activeSelf) UpdatePrintAreaList();
+            }));
+            UpdateLayersPanel();
+            if (globalInfoPanel != null && globalInfoPanel.activeSelf) UpdatePrintAreaList();
+        }
+
+        public void SelectObject(GameObject obj)
+        {
+            if (currentSelection == obj) return;
+            
+            // Check if object is locked
+            var manipulator = obj.GetComponent<ObjectManipulator>();
+            if (manipulator != null && manipulator.IsLocked) return;
+
+            // IMPORTANT: If we are clicking a new object, deselect old one first
+            Deselect();
+            currentSelection = obj;
+            
+            currentOutline = currentSelection.GetComponent<Outline>();
+            if (currentOutline == null) currentOutline = currentSelection.AddComponent<Outline>();
+            currentOutline.effectColor = Color.green;
+            currentOutline.effectDistance = new Vector2(2, -2);
+            currentOutline.enabled = true;
+
+            if (contextToolbar != null) contextToolbar.SetActive(true);
+            CreateRotationHandle();
+
+            if (positionPanel != null) positionPanel.SetActive(true);
+            if (canvasSizeText != null) canvasSizeText.gameObject.SetActive(false);
+            
+            // Switch to Layer Panel FIRST so children can start coroutines
+            if (layerInfoPanel != null) layerInfoPanel.SetActive(true);
+            if (globalInfoPanel != null) globalInfoPanel.SetActive(false);
+
+            // Sync Craft Mode UI
+            var data = obj.GetComponent<LayerData>();
+            if (data == null) data = obj.AddComponent<LayerData>();
+            SyncCraftModeUI(data.craftMode);
+
+            UpdatePositionInfo();
+            UpdateLayersPanel(); // Refresh selection in list
+            
+            // Update Mini Preview
+            UpdateMiniPreview();
+        }
+
+        public void Deselect()
+        {
+            if (currentSelection != null)
+            {
+                if (currentOutline != null) currentOutline.enabled = false;
+                DestroyRotationHandle();
+            }
+
+            currentSelection = null;
+            if (contextToolbar != null) contextToolbar.SetActive(false);
+            
+            if (positionPanel != null) positionPanel.SetActive(false);
+            if (canvasSizeText != null) canvasSizeText.gameObject.SetActive(true);
+
+            // Switch to Global Panel
+            if (layerInfoPanel != null) layerInfoPanel.SetActive(false);
+            if (globalInfoPanel != null) 
+            {
+                globalInfoPanel.SetActive(true);
+                UpdatePrintAreaList(); // Refresh the list when switching to global panel
+            }
+
+            UpdateLayersPanel();
+        }
+
+        public void UpdatePrintAreaList()
+        {
+            if (printAreaListContainer == null || paper == null) return;
+
+            // Clear old items
+            foreach (Transform child in printAreaListContainer.transform) Destroy(child.gameObject);
+
+            // Iterate layers from bottom to top (matches sibling index 0 to N)
+            for (int i = 0; i < paper.childCount; i++)
+            {
+                Transform layer = paper.GetChild(i);
+                if (layer.name == "BGDeselector") continue;
+
+                CreatePrintAreaItem(layer.gameObject);
+            }
+        }
+
+        private void CreatePrintAreaItem(GameObject layerObj)
+        {
+            GameObject item = new GameObject("PrintAreaItem", typeof(RectTransform), typeof(Image), typeof(Button));
+            item.transform.SetParent(printAreaListContainer.transform, false);
+            RectTransform rt = item.GetComponent<RectTransform>();
+            rt.sizeDelta = new Vector2(0, 60); // Total item height
+            
+            item.GetComponent<Image>().color = new Color(1, 1, 1, 0.01f); 
+            item.GetComponent<Button>().onClick.AddListener(() => SelectObject(layerObj));
+
+            HorizontalLayoutGroup hlg = item.AddComponent<HorizontalLayoutGroup>();
+            hlg.padding = new RectOffset(10, 10, 5, 5); hlg.spacing = 15; hlg.childAlignment = TextAnchor.MiddleLeft;
+            hlg.childControlWidth = true; hlg.childControlHeight = true; hlg.childForceExpandWidth = true;
+
+            // 1. Thumbnail Container (to maintain aspect ratio and size)
+            GameObject thumbFrame = new GameObject("ThumbFrame", typeof(RectTransform));
+            thumbFrame.transform.SetParent(item.transform, false);
+            LayoutElement leFrame = thumbFrame.AddComponent<LayoutElement>();
+            leFrame.minWidth = 50; leFrame.preferredWidth = 50; leFrame.minHeight = 50; leFrame.preferredHeight = 50;
+
+            GameObject thumbObj = new GameObject("Thumb", typeof(RectTransform), typeof(Image));
+            thumbObj.transform.SetParent(thumbFrame.transform, false);
+            RectTransform thumbRt = thumbObj.GetComponent<RectTransform>();
+            thumbRt.sizeDelta = new Vector2(50, 50); // Fixed 50x50
+            thumbRt.anchoredPosition = Vector2.zero;
+            
+            Image thumbImg = thumbObj.GetComponent<Image>();
+            thumbImg.preserveAspect = true; // Prevent stretching
+            
+            // Set thumbnail color or sprite from the layer
+            Image layerImg = layerObj.GetComponent<Image>();
+            if (layerImg != null)
+            {
+                thumbImg.sprite = layerImg.sprite;
+                thumbImg.color = layerImg.color;
+            }
+            else
+            {
+                thumbImg.color = Color.black;
+            }
+
+            // 2. Info Container
+            GameObject info = new GameObject("Info", typeof(RectTransform));
+            info.transform.SetParent(item.transform, false);
+            VerticalLayoutGroup ivlg = info.AddComponent<VerticalLayoutGroup>();
+            ivlg.childAlignment = TextAnchor.MiddleLeft; ivlg.spacing = 2;
+
+            var data = layerObj.GetComponent<LayerData>();
+            string craftMode = data != null ? data.craftMode : "Flat";
+            string inkMode = data != null ? data.inkMode : "White > CMYK";
+
+            Text nameTxt = UIFactory.CreateText(craftMode, info, 13, Color.black, Vector2.zero, Vector2.zero).GetComponent<Text>();
+            nameTxt.fontStyle = FontStyle.Bold;
+            nameTxt.alignment = TextAnchor.MiddleLeft;
+
+            Text modeTxt = UIFactory.CreateText(inkMode, info, 11, Color.gray, Vector2.zero, Vector2.zero).GetComponent<Text>();
+            modeTxt.alignment = TextAnchor.MiddleLeft;
+
+            // 3. Right side info (e.g. Height for Raised)
+            if (craftMode.Contains("Raised"))
+            {
+                GameObject rightInfo = new GameObject("RightInfo", typeof(RectTransform));
+                rightInfo.transform.SetParent(item.transform, false);
+                Text rText = UIFactory.CreateText("1mm", rightInfo, 11, Color.gray, Vector2.zero, Vector2.zero).GetComponent<Text>();
+                rText.alignment = TextAnchor.MiddleRight;
+                rightInfo.AddComponent<LayoutElement>().minWidth = 40;
+            }
+        }
+
+        public void SetPaperColor(Color c)
+        {
+            if (useMaterialColorAsBackground && paperBackground != null)
+            {
+                paperBackground.color = c;
+            }
+        }
+
+        public void SetUseMaterialColor(bool use)
+        {
+            useMaterialColorAsBackground = use;
+        }
+
+        public void UpdatePositionInfo()
+        {
+            if (currentSelection != null)
+            {
+                RectTransform rt = currentSelection.GetComponent<RectTransform>();
+                if (rt != null)
+                {
+                    // USER REQ: Bottom-right is (0,0). X increases left, Y increases up.
+                    // Paper is 600x600. Center is (0,0) in Unity.
+                    // Bottom-right in Unity is (300, -300).
+                    float userX = 300f - rt.anchoredPosition.x;
+                    float userY = rt.anchoredPosition.y + 300f;
+                    
+                    if(posXText) posXText.text = $"X: {userX:F1} mm";
+                    if(posYText) posYText.text = $"Y: {userY:F1} mm";
+                    if(widthText) widthText.text = $"W: {rt.rect.width:F1} mm";
+                    if(heightText) heightText.text = $"H: {rt.rect.height:F1} mm";
+                    
+                    float rot = rt.localEulerAngles.z;
+                    if (rot > 180) rot -= 360;
+                    if(rotationText) rotationText.text = $"Rotation: {-rot:F1}°";
+                }
+            }
+        }
+
+        #region Zoom and Pan
+        public void ChangeZoom(float delta)
+        {
+            SetZoom(currentZoom + delta);
+        }
+
+        public void SetZoom(float value)
+        {
+            currentZoom = Mathf.Clamp(value, 0.1f, 20f);
+            
+            if (paper != null)
+            {
+                paper.localScale = new Vector3(currentZoom, currentZoom, 1f);
+            }
+            
+            if (zoomText != null) zoomText.text = $"{(currentZoom * 100):F0}%";
+            if (zoomDropdown != null) zoomDropdown.captionText.text = $"{(currentZoom * 100):F0}%";
+
+            UpdateRulers();
+        }
+
+        public void UpdateRulers()
+        {
+            if (bottomRuler == null || rightRuler == null || paper == null) return;
+
+            // Clear old labels and ticks
+            foreach (Transform child in bottomRuler) Destroy(child.gameObject);
+            foreach (Transform child in rightRuler) Destroy(child.gameObject);
+
+            // 1. Calculate Major Step (with labels)
+            float labelPixelThreshold = 80f; 
+            float[] possibleSteps = { 1, 2, 5, 10, 25, 50, 100, 200, 500, 1000, 2500, 5000 };
+            float majorStep = 100;
+            foreach (float s in possibleSteps)
+            {
+                if (s * currentZoom >= labelPixelThreshold) { majorStep = s; break; }
+            }
+
+            // 2. Calculate Minor Step (1/10 of major)
+            float minorStep = majorStep / 10f;
+
+            // --- Bottom Ruler (X) ---
+            float wsWidth = bottomRuler.rect.width;
+            float halfWs = wsWidth / 2f;
+            float minUserX = 300f - (halfWs - paper.anchoredPosition.x) / currentZoom;
+            float maxUserX = 300f - (-halfWs - paper.anchoredPosition.x) / currentZoom;
+            
+            float startX = Mathf.Floor(Mathf.Min(minUserX, maxUserX) / majorStep) * majorStep;
+            float endX = Mathf.Ceil(Mathf.Max(minUserX, maxUserX) / majorStep) * majorStep;
+
+            for (float x = startX; x <= endX; x += majorStep)
+            {
+                // Major Tick & Text
+                float unityX = (300f - x) * currentZoom + paper.anchoredPosition.x;
+                if (unityX >= -halfWs && unityX <= halfWs)
+                {
+                    DrawTick(bottomRuler, new Vector2(unityX, 6), new Vector2(1, 12)); // Major tick line
+                    GameObject t = UIFactory.CreateText(x.ToString(), bottomRuler.gameObject, 7, Color.gray, new Vector2(unityX, -4), new Vector2(40, 20));
+                    t.GetComponent<Text>().alignment = TextAnchor.MiddleCenter;
+                }
+
+                // Minor Ticks (10 subdivisions)
+                for (int i = 1; i < 10; i++)
+                {
+                    float sx = x + i * minorStep;
+                    float usx = (300f - sx) * currentZoom + paper.anchoredPosition.x;
+                    if (usx >= -halfWs && usx <= halfWs)
+                    {
+                        DrawTick(bottomRuler, new Vector2(usx, 9), new Vector2(1, 6)); // Minor tick line
+                    }
+                }
+            }
+
+            // --- Right Ruler (Y) ---
+            float wsHeight = rightRuler.rect.height;
+            float halfHs = wsHeight / 2f;
+            float minUserY = 300f + (-halfHs - paper.anchoredPosition.y) / currentZoom;
+            float maxUserY = 300f + (halfHs - paper.anchoredPosition.y) / currentZoom;
+
+            float startY = Mathf.Floor(Mathf.Min(minUserY, maxUserY) / majorStep) * majorStep;
+            float endY = Mathf.Ceil(Mathf.Max(minUserY, maxUserY) / majorStep) * majorStep;
+
+            for (float y = startY; y <= endY; y += majorStep)
+            {
+                // Major Tick & Text
+                float unityY = (y - 300f) * currentZoom + paper.anchoredPosition.y;
+                if (unityY >= -halfHs && unityY <= halfHs)
+                {
+                    DrawTick(rightRuler, new Vector2(6, unityY), new Vector2(12, 1)); // Major tick line
+                    GameObject t = UIFactory.CreateText(y.ToString(), rightRuler.gameObject, 7, Color.gray, new Vector2(-6, unityY), new Vector2(20, 40));
+                    t.GetComponent<Text>().alignment = TextAnchor.MiddleCenter;
+                }
+
+                // Minor Ticks
+                for (int i = 1; i < 10; i++)
+                {
+                    float sy = y + i * minorStep;
+                    float usy = (sy - 300f) * currentZoom + paper.anchoredPosition.y;
+                    if (usy >= -halfHs && usy <= halfHs)
+                    {
+                        DrawTick(rightRuler, new Vector2(9, usy), new Vector2(6, 1)); // Minor tick line
+                    }
+                }
+            }
+        }
+
+        private void DrawTick(RectTransform parent, Vector2 pos, Vector2 size)
+        {
+            GameObject tick = new GameObject("Tick", typeof(RectTransform), typeof(Image));
+            tick.transform.SetParent(parent, false);
+            RectTransform rt = tick.GetComponent<RectTransform>();
+            rt.sizeDelta = size;
+            rt.anchoredPosition = pos;
+            tick.GetComponent<Image>().color = new Color(0.7f, 0.7f, 0.7f, 0.8f);
+        }
+
+        public void UpdateLayersPanel()
+        {
+            if (layersListContainer == null || paper == null) return;
+
+            // Clear old items (skip title if any, but we re-draw all)
+            foreach (Transform child in layersListContainer.transform) Destroy(child.gameObject);
+
+            // Iterate all objects on paper
+            // We want top-most layer at top of list, or reverse? Usually top-most is last sibling.
+            // Let's iterate in reverse to match visual order.
+            for (int i = paper.childCount - 1; i >= 0; i--)
+            {
+                Transform layer = paper.GetChild(i);
+                if (layer.name == "BGDeselector") continue;
+
+                CreateLayerItem(layer.gameObject);
+            }
+        }
+
+        private void CreateLayerItem(GameObject layerObj)
+        {
+            GameObject item = new GameObject("LayerItem", typeof(RectTransform));
+            item.transform.SetParent(layersListContainer.transform, false);
+            RectTransform rt = item.GetComponent<RectTransform>();
+            rt.sizeDelta = new Vector2(230, 40);
+            
+            HorizontalLayoutGroup hlg = item.AddComponent<HorizontalLayoutGroup>();
+            hlg.padding = new RectOffset(5, 5, 5, 5); hlg.spacing = 8; hlg.childAlignment = TextAnchor.MiddleLeft;
+            hlg.childControlWidth = true; hlg.childControlHeight = true; hlg.childForceExpandWidth = true;
+
+            // Selection Highlight Image
+            Image bgImg = item.AddComponent<Image>();
+            bgImg.color = (currentSelection == layerObj) ? new Color(0.2f, 0.8f, 0.4f, 0.2f) : new Color(1, 1, 1, 0);
+            item.AddComponent<Button>().onClick.AddListener(() => SelectObject(layerObj));
+
+            // 1. Visibility Icon [V/H]
+            GameObject eyeBtn = new GameObject("Eye", typeof(RectTransform), typeof(Image), typeof(Button));
+            eyeBtn.transform.SetParent(item.transform, false);
+            // CRITICAL: Prevent squashing
+            LayoutElement leEye = eyeBtn.AddComponent<LayoutElement>();
+            leEye.minWidth = 30; leEye.preferredWidth = 30; leEye.minHeight = 24;
+            
+            eyeBtn.GetComponent<Image>().color = layerObj.activeSelf ? new Color(0.2f, 0.8f, 0.4f) : new Color(0.7f, 0.7f, 0.7f);
+            
+            Text eyeTxt = new GameObject("Txt", typeof(RectTransform)).AddComponent<Text>();
+            eyeTxt.transform.SetParent(eyeBtn.transform, false);
+            UIFactory.Stretch(eyeTxt.rectTransform);
+            eyeTxt.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            eyeTxt.text = layerObj.activeSelf ? "V" : "H";
+            eyeTxt.alignment = TextAnchor.MiddleCenter; eyeTxt.color = Color.white; eyeTxt.fontSize = 11;
+            
+            eyeBtn.GetComponent<Button>().onClick.AddListener(() => {
+                layerObj.SetActive(!layerObj.activeSelf);
+                UpdateLayersPanel();
+            });
+
+            // 2. Layer Name
+            GameObject nameObj = new GameObject("Name", typeof(RectTransform), typeof(Text));
+            nameObj.transform.SetParent(item.transform, false);
+            nameObj.AddComponent<LayoutElement>().flexibleWidth = 1; // Take remaining space
+            Text nText = nameObj.GetComponent<Text>();
+            nText.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            nText.text = layerObj.name;
+            nText.color = Color.black; nText.fontSize = 12; nText.alignment = TextAnchor.MiddleLeft;
+
+            // 3. Lock Icon [L/U]
+            var manipulator = layerObj.GetComponent<ObjectManipulator>();
+            bool isLocked = manipulator != null && manipulator.IsLocked;
+            
+            GameObject lockBtn = new GameObject("Lock", typeof(RectTransform), typeof(Image), typeof(Button));
+            lockBtn.transform.SetParent(item.transform, false);
+            // CRITICAL: Prevent squashing
+            LayoutElement leLock = lockBtn.AddComponent<LayoutElement>();
+            leLock.minWidth = 30; leLock.preferredWidth = 30; leLock.minHeight = 24;
+            
+            lockBtn.GetComponent<Image>().color = isLocked ? new Color(0.8f, 0.2f, 0.2f) : new Color(0.4f, 0.6f, 1f);
+            
+            Text lockTxt = new GameObject("Txt", typeof(RectTransform)).AddComponent<Text>();
+            lockTxt.transform.SetParent(lockBtn.transform, false);
+            UIFactory.Stretch(lockTxt.rectTransform);
+            lockTxt.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            lockTxt.text = isLocked ? "L" : "U";
+            lockTxt.alignment = TextAnchor.MiddleCenter; lockTxt.color = Color.white; lockTxt.fontSize = 11;
+            
+            lockBtn.GetComponent<Button>().onClick.AddListener(() => {
+                if (manipulator != null) {
+                    manipulator.IsLocked = !manipulator.IsLocked;
+                    if (manipulator.IsLocked && currentSelection == layerObj) Deselect();
+                    UpdateLayersPanel();
+                }
+            });
+        }
+
+        public void SyncCraftModeUI(string mode)
+        {
+            if (craftModeContainer == null) return;
+            foreach (Transform child in craftModeContainer.transform)
+            {
+                var outline = child.GetComponent<Outline>();
+                if (outline != null)
+                {
+                    // Check if button text matches mode
+                    var txt = child.GetComponentInChildren<Text>();
+                    if (txt != null) outline.effectColor = (txt.text == mode) ? Color.green : Color.gray;
+                }
+            }
+            OnCraftModeChanged(mode); // Ensure preview updates
+        }
+
+        public void OnUploadDepthMap()
+        {
+            #if UNITY_EDITOR
+            string path = UnityEditor.EditorUtility.OpenFilePanel("Select Depth Map", "", "jpg,png,svg,webp");
+            if (!string.IsNullOrEmpty(path))
+            {
+                if (currentSelection == null)
+                {
+                    ShowInfoPopup("请先选择一个图层再上传深度图。");
+                    return;
+                }
+
+                Image img = currentSelection.GetComponent<Image>();
+                if (img == null || img.sprite == null)
+                {
+                    ShowInfoPopup("当前图层不是图片图层，无法应用深度图。");
+                    return;
+                }
+
+                // Expected size: sprite rect size in pixels
+                int expectedW = Mathf.RoundToInt(img.sprite.rect.width);
+                int expectedH = Mathf.RoundToInt(img.sprite.rect.height);
+
+                byte[] data = System.IO.File.ReadAllBytes(path);
+                Texture2D depthTex = new Texture2D(2, 2, TextureFormat.RGBA32, false, true);
+                if (!depthTex.LoadImage(data))
+                {
+                    ShowInfoPopup("深度图加载失败。");
+                    return;
+                }
+
+                // Must match current layer size
+                if (depthTex.width != expectedW || depthTex.height != expectedH)
+                {
+                    ShowInfoPopup($"深度图尺寸不匹配：需要 {expectedW}x{expectedH}，当前 {depthTex.width}x{depthTex.height}。未应用。");
+                    Destroy(depthTex);
+                    return;
+                }
+
+                var ld = currentSelection.GetComponent<LayerData>();
+                if (ld == null) ld = currentSelection.AddComponent<LayerData>();
+                ld.customDepthMap = depthTex;
+                ld.customDepthWidth = depthTex.width;
+                ld.customDepthHeight = depthTex.height;
+
+                Debug.Log("[CraftMode] Depth map applied: " + path);
+                ShowInfoPopup("Depth Map 已应用: " + System.IO.Path.GetFileName(path));
+
+                // Refresh previews if needed
+                UpdateMiniPreview();
+            }
+            #else
+            Debug.Log("[CraftMode] File browser triggered (Runtime simulation)");
+            ShowInfoPopup("Opening System File Browser...");
+            #endif
+        }
+
+        public void ChangeMiniZoom(float delta)
+        {
+            currentMiniZoom = Mathf.Clamp(currentMiniZoom + delta, 0.1f, 10f);
+            if (miniModelViewer != null)
+            {
+                miniModelViewer.SetCameraZoom(currentMiniZoom);
+            }
+        }
+
+        public void OnCraftModeChanged(string mode)
+        {
+            if (currentSelection != null)
+            {
+                var data = currentSelection.GetComponent<LayerData>();
+                if (data == null) data = currentSelection.AddComponent<LayerData>();
+                data.craftMode = mode;
+            }
+
+            // Mini preview for all parallax modes (including Customize Texture). Flat has no depth.
+            bool hasMode = NeXTMake.UI.TextureEffects.TextureModeUtil.TryParseCraftMode(mode, out var texMode);
+            bool needsThumbnail = hasMode && NeXTMake.UI.TextureEffects.TextureModeUtil.IsParallaxMode(texMode);
+            bool needsUpload = (mode == "Customize Texture");
+
+            if (miniPreviewPanel != null)
+            {
+                miniPreviewPanel.SetActive(needsThumbnail);
+                if (needsThumbnail) 
+                {
+                    // USER REQ: Initial zoom at 1.2x (was 2.5x)
+                    currentMiniZoom = 1.2f; 
+                    UpdateMiniPreview();
+                }
+            }
+
+            if (customizePanel != null)
+            {
+                customizePanel.SetActive(needsUpload);
+            }
+        }
+
+        public void OnDownloadDepthImage()
+        {
+            if (currentSelection == null)
+            {
+                ShowInfoPopup("请先选择一个图层。");
+                return;
+            }
+
+            var ld = currentSelection.GetComponent<LayerData>();
+            string craftMode = ld != null ? ld.craftMode : null;
+            if (!NeXTMake.UI.TextureEffects.TextureModeUtil.TryParseCraftMode(craftMode, out var mode))
+            {
+                ShowInfoPopup("当前模式无深度图可导出。");
+                return;
+            }
+
+            if (mode == NeXTMake.UI.TextureEffects.TextureMode.Flat)
+            {
+                ShowInfoPopup("Flat 模式没有深度图。");
+                return;
+            }
+
+            Image img = currentSelection.GetComponent<Image>();
+            if (img == null || img.sprite == null)
+            {
+                ShowInfoPopup("当前图层不是图片图层，无法导出深度图。");
+                return;
+            }
+
+            Texture2D depthTex = null;
+            bool shouldDestroy = false;
+
+            if (mode == NeXTMake.UI.TextureEffects.TextureMode.CustomizeTexture && ld != null && ld.customDepthMap != null)
+            {
+                depthTex = ld.customDepthMap;
+            }
+            else
+            {
+                var spriteTex = NeXTMake.UI.TextureEffects.SpriteTextureUtil.ExtractSpriteTexture(img.sprite, 0); // keep original size
+                if (spriteTex == null)
+                {
+                    ShowInfoPopup("无法读取图层图片纹理。");
+                    return;
+                }
+                depthTex = NeXTMake.UI.TextureEffects.HeightMapGenerator.GenerateHeightMap(spriteTex, mode);
+                shouldDestroy = true;
+                Destroy(spriteTex);
+            }
+
+            if (depthTex == null)
+            {
+                ShowInfoPopup("深度图生成失败。");
+                return;
+            }
+
+            byte[] png = depthTex.EncodeToPNG();
+            if (shouldDestroy) Destroy(depthTex);
+
+            #if UNITY_EDITOR
+            string defaultName = $"DepthImage_{currentSelection.name}.png";
+            string savePath = UnityEditor.EditorUtility.SaveFilePanel("Save Depth Image", "", defaultName, "png");
+            if (!string.IsNullOrEmpty(savePath))
+            {
+                System.IO.File.WriteAllBytes(savePath, png);
+                ShowInfoPopup("已保存: " + System.IO.Path.GetFileName(savePath));
+            }
+            #else
+            // Runtime: no native file dialog without plugin; fallback to persistentDataPath
+            string dir = Application.persistentDataPath;
+            string path = System.IO.Path.Combine(dir, $"DepthImage_{currentSelection.name}_{System.DateTime.Now:yyyyMMdd_HHmmss}.png");
+            System.IO.File.WriteAllBytes(path, png);
+            ShowInfoPopup("已保存到: " + path);
+            #endif
+        }
+
+        private void UpdateMiniPreview()
+        {
+            if (miniModelViewer == null) return;
+            
+            // Ensure preview panel is active so Model3DViewer can initialize
+            if (miniPreviewPanel != null && !miniPreviewPanel.activeSelf)
+            {
+                miniPreviewPanel.SetActive(true);
+            }
+
+            // 1. Setup 3D Container - Find existing by name to prevent accumulation
+            if (miniDesignStage != null) Object.DestroyImmediate(miniDesignStage);
+            
+            // Safety check for orphans in scene
+            GameObject existing = GameObject.Find("MiniDesignStage");
+            if (existing != null) Object.DestroyImmediate(existing);
+            
+            miniDesignStage = new GameObject("MiniDesignStage");
+            
+            GameObject container = new GameObject("Container");
+            container.transform.SetParent(miniDesignStage.transform);
+
+            // 2. Setup Paper & Content
+            GameObject paperPlane = GameObject.CreatePrimitive(PrimitiveType.Quad);
+            paperPlane.transform.SetParent(container.transform);
+            paperPlane.transform.localScale = new Vector3(6, 6, 1);
+            paperPlane.transform.localRotation = Quaternion.Euler(90, 0, 0);
+            paperPlane.GetComponent<Renderer>().material = new Material(Shader.Find("Standard"));
+            paperPlane.GetComponent<Renderer>().material.color = Color.white;
+
+            // 3. Get camera and ensure it's initialized
+            Camera cam = miniModelViewer.GetComponentInChildren<Camera>();
+            if (cam == null)
+            {
+                // Force initialization if camera doesn't exist
+                if (miniModelViewer.targetImage != null)
+                {
+                    miniModelViewer.InitializeRenderer();
+                    cam = miniModelViewer.GetComponentInChildren<Camera>();
+                }
+                if (cam == null)
+                {
+                    Debug.LogWarning("[CanvasController] Mini preview camera not found!");
+                    return;
+                }
+            }
+            
+            // Ensure camera only renders the preview layer
+            int previewLayer = miniModelViewer.gameObject.layer;
+            miniModelViewer.renderLayer = 1 << previewLayer;
+            cam.cullingMask = miniModelViewer.renderLayer;
+            cam.nearClipPlane = 0.0001f;
+            cam.farClipPlane = 10000f;
+
+            GameObject worldCanvas = new GameObject("WorldCanvas");
+            worldCanvas.transform.SetParent(container.transform);
+            worldCanvas.transform.localRotation = Quaternion.Euler(90, 0, 0);
+            worldCanvas.transform.localPosition = new Vector3(0, 0.05f, 0);
+            worldCanvas.transform.localScale = Vector3.one * 0.01f;
+            
+            Canvas c = worldCanvas.AddComponent<Canvas>();
+            c.renderMode = RenderMode.WorldSpace;
+            c.worldCamera = cam; // Set after camera is confirmed
+            worldCanvas.AddComponent<CanvasScaler>().dynamicPixelsPerUnit = 1;
+            
+            // CRITICAL: Larger sizeDelta to prevent edge clipping
+            RectTransform wcRt = worldCanvas.GetComponent<RectTransform>();
+            wcRt.sizeDelta = new Vector2(650, 650); // Extra padding beyond 600mm canvas
+
+            // Add white background as first child to ensure complete coverage
+            GameObject bgObj = UIFactory.CreateObject("PaperBackground", worldCanvas);
+            UIFactory.Stretch(bgObj.GetComponent<RectTransform>());
+            bgObj.AddComponent<Image>().color = Color.white;
+
+            // USER REQ: Only show current selection in mini preview
+            if (currentSelection != null)
+            {
+                var ld = currentSelection.GetComponent<LayerData>();
+                string craftMode = ld != null ? ld.craftMode : null;
+                bool isTextureMode = TextureModeUtil.TryParseCraftMode(craftMode, out TextureMode texMode)
+                                     && TextureModeUtil.IsParallaxMode(texMode);
+
+                Image selImg = currentSelection.GetComponent<Image>();
+                RectTransform selRt = currentSelection.GetComponent<RectTransform>();
+
+                if (isTextureMode && selImg != null && selImg.sprite != null && selRt != null)
+                {
+                    // Build a parallax quad instead of a flat UI clone
+                    GameObject meshRoot = new GameObject("MeshLayers");
+                    meshRoot.transform.SetParent(container.transform, false);
+                    meshRoot.transform.localRotation = Quaternion.Euler(90, 0, 0);
+                    meshRoot.transform.localPosition = new Vector3(0, 0.06f, 0);
+                    meshRoot.transform.localScale = Vector3.one * 0.01f;
+
+                    Texture2D depthOverride = null;
+                    if (texMode == TextureMode.CustomizeTexture && ld != null && ld.customDepthMap != null)
+                    {
+                        depthOverride = ld.customDepthMap;
+                    }
+                    PreviewMeshBuilder.BuildImageLayerQuad(selImg, selRt, meshRoot.transform, 4f, texMode, depthOverride, 512);
+                    SetLayerRecursive(meshRoot, previewLayer);
+                }
+                else
+                {
+                    // Fallback: old flat clone for non-image or non-texture mode
+                    GameObject copy = Object.Instantiate(currentSelection, worldCanvas.transform);
+                    copy.SetActive(true);
+                    if (selRt != null) copy.GetComponent<RectTransform>().anchoredPosition = selRt.anchoredPosition;
+
+                    if (copy.GetComponent<ObjectManipulator>()) Destroy(copy.GetComponent<ObjectManipulator>());
+                    if (copy.GetComponent<BoxCollider2D>()) Destroy(copy.GetComponent<BoxCollider2D>());
+                    if (copy.GetComponent<Outline>()) Destroy(copy.GetComponent<Outline>());
+
+                    Transform rotHandle = copy.transform.Find("RotationHandle");
+                    if (rotHandle != null) Destroy(rotHandle.gameObject);
+
+                    copy.transform.localPosition = new Vector3(copy.transform.localPosition.x, copy.transform.localPosition.y, -1f);
+                    SetLayerRecursive(copy, previewLayer);
+                }
+            }
+
+            // 4. Add Moving Light Effect - USER REQ: Brighter, smaller range, focused on image
+            GameObject lightObj = new GameObject("MovingLight");
+            lightObj.transform.SetParent(miniDesignStage.transform);
+            Light l = lightObj.AddComponent<Light>();
+            l.type = LightType.Spot;
+            l.range = 10f;
+            l.spotAngle = 45f;
+            l.intensity = 4.0f;
+            l.color = new Color(1, 0.98f, 0.95f);
+            l.shadows = LightShadows.Soft;
+            lightObj.transform.localPosition = new Vector3(0, 5, 4);
+            lightObj.transform.LookAt(new Vector3(0, 0, 0));
+            
+            // Script for moving the light
+            lightObj.AddComponent<MovingLightEffect>();
+
+            miniModelViewer.modelContainer = miniDesignStage;
+            miniModelViewer.SetModel(miniDesignStage);
+        }
+
+        public void ZoomToFit()
+        {
+            SetZoom(1.1f);
+            if (paper != null) paper.anchoredPosition = Vector2.zero;
+        }
+
+        public void ToggleHandTool(bool active)
+        {
+            handToolActive = active;
+        }
+
+        public bool IsHandToolActive() => handToolActive;
+
+        void Update()
+        {
+            // 1. Delete Selection
+            if (currentSelection != null && (Input.GetKeyDown(KeyCode.Backspace) || Input.GetKeyDown(KeyCode.Delete)))
+            {
+                RecordDelete(currentSelection);
+                Deselect();
+            }
+        }
+
+        void OnEnable()
+        {
+            // USER REQ: Re-initialize mini preview when returning to editor
+            if (currentSelection != null)
+            {
+                var data = currentSelection.GetComponent<LayerData>();
+                if (data != null)
+                {
+                    OnCraftModeChanged(data.craftMode);
+                }
+            }
+        }
+
+        void OnDisable()
+        {
+            // Clean up mini preview objects to prevent accumulation in Hierarchy
+            if (miniDesignStage != null)
+            {
+                Object.DestroyImmediate(miniDesignStage);
+                miniDesignStage = null;
+            }
+            if (miniModelViewer != null)
+            {
+                miniModelViewer.SetModel(null);
+            }
+        }
+        #endregion
+
+        private void CreateRotationHandle()
+        {
+            if (rotationHandle != null) Destroy(rotationHandle);
+            
+            rotationHandle = new GameObject("RotationHandle");
+            rotationHandle.transform.SetParent(currentSelection.transform, false);
+            
+            Image img = rotationHandle.AddComponent<Image>();
+            img.color = Color.green;
+            
+            RectTransform rt = rotationHandle.GetComponent<RectTransform>();
+            rt.sizeDelta = new Vector2(20, 20);
+            float yPos = -(currentSelection.GetComponent<RectTransform>().rect.height / 2f) - 30f;
+            rt.anchoredPosition = new Vector2(0, yPos);
+            
+            RotationHandler handler = rotationHandle.AddComponent<RotationHandler>();
+            handler.target = currentSelection.GetComponent<RectTransform>();
+            handler.controller = this;
+            
+            GameObject icon = new GameObject("Icon");
+            icon.transform.SetParent(rotationHandle.transform, false);
+            Text t = icon.AddComponent<Text>();
+            t.text = "⟳";
+            t.alignment = TextAnchor.MiddleCenter;
+            t.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            t.color = Color.white;
+            t.rectTransform.sizeDelta = new Vector2(20, 20);
+        }
+
+        private void DestroyRotationHandle()
+        {
+            if (rotationHandle != null) Destroy(rotationHandle);
+        }
+
+        private void SetLayerRecursive(GameObject obj, int layer)
+        {
+            obj.layer = layer;
+            foreach (Transform child in obj.transform)
+            {
+                SetLayerRecursive(child.gameObject, layer);
+            }
+        }
+    }
+
+    // Helper component for moving light
+    public class MovingLightEffect : MonoBehaviour
+    {
+        private float startTime;
+        void Start() { startTime = Time.time; }
+        void Update()
+        {
+            float t = (Time.time - startTime) * 1.5f;
+            // Figure-8 pattern
+            float x = Mathf.Sin(t) * 4f;
+            float z = Mathf.Sin(t * 2f) * 2f;
+            transform.localPosition = new Vector3(x, 2f, z);
+        }
+    }
+}
