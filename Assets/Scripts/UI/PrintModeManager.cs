@@ -41,6 +41,12 @@ namespace NeXTMake.UI
             if (studioUIManager == null)
                 studioUIManager = FindObjectOfType<StudioUIManager>();
             
+            // 自动查找模式按钮
+            if (uvPrintModeButton == null)
+                uvPrintModeButton = FindObjectOfType<Button>(true);
+            if (print3DModeButton == null)
+                print3DModeButton = FindObjectOfType<Button>(true);
+            
             InitializeButtons();
             SwitchMode(currentMode);
         }

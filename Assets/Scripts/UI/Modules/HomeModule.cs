@@ -129,7 +129,11 @@ namespace NeXTMake.UI.Modules
             GameObject switcher = UIFactory.CreateObject("Switcher", rightHome);
             switcher.AddComponent<LayoutElement>().minWidth = 160; switcher.GetComponent<LayoutElement>().minHeight = 36;
             switcher.AddComponent<Image>().color = new Color(0.9f, 0.9f, 0.9f);
-            switcher.AddComponent<Button>().onClick.AddListener(manager.ShowSelectionDialog);
+            Button switcherButton = switcher.AddComponent<Button>();
+            switcherButton.onClick.AddListener(() => {
+                Debug.Log("[HomeModule] UV Print Studio button clicked");
+                manager.ShowSelectionDialog();
+            });
             UIFactory.CreateText("UV Print Studio v", switcher, 14, UIFactory.COLOR_TEXT_DARK, Vector2.zero, Vector2.zero);
             UIFactory.CreateTextButton("NOTIF", rightHome, 12, UIFactory.COLOR_TEXT_DARK); UIFactory.CreateTextButton("HELP", rightHome, 12, UIFactory.COLOR_TEXT_DARK);
 
@@ -564,15 +568,23 @@ namespace NeXTMake.UI.Modules
                 ProjectData data = new ProjectData();
                 
                 if (i == 0) {
-                    Texture2D bgTex = Resources.Load<Texture2D>("UVImages/img1/bg");
-                    Texture2D uvTex = Resources.Load<Texture2D>("UVImages/img1/uv") ?? Resources.Load<Texture2D>("UVImages/img1/uv.jpg");
-                    Texture2D combinedTex = Resources.Load<Texture2D>("UVImages/img1/combined");
+                    // 尝试多种路径加载资源
+                    Texture2D bgTex = null;
+                    Texture2D uvTex = null;
+                    Texture2D combinedTex = null;
                     
-                    if (bgTex != null) {
+                    // 尝试主要路径
+                    bgTex = Resources.Load<Texture2D>("UVImages/img1/bg");
+                    uvTex = Resources.Load<Texture2D>("UVImages/img1/uv") ?? Resources.Load<Texture2D>("UVImages/img1/uv.jpg");
+                    combinedTex = Resources.Load<Texture2D>("UVImages/img1/combined");
+                    
+                    // 检查资源是否加载成功
+                    if (bgTex == null) {
+                        Debug.LogWarning("[HomeModule] 无法加载背景纹理，使用默认颜色");
+                        imgComp.color = new Color(0.3f, 0.5f, 0.8f);
+                    } else {
                         imgComp.sprite = Sprite.Create(bgTex, new Rect(0, 0, bgTex.width, bgTex.height), new Vector2(0.5f, 0.5f));
                         data.bgTexture = bgTex;
-                    } else {
-                        imgComp.color = new Color(0.3f, 0.5f, 0.8f);
                     }
                     
                     data.bgTexture = bgTex;
