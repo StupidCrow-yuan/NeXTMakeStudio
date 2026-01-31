@@ -340,12 +340,11 @@ namespace NeXTMake.UI.Modules
 
         private static void CreateLayersPanel(GameObject workspace, CanvasController controller)
         {
-            // Fix: Position strictly at bottom-left of workspace area
+            // Position at bottom-left of workspace area using relative position
             GameObject container = UIFactory.CreateObject("LayersContainer", workspace);
             RectTransform cr = container.GetComponent<RectTransform>();
-            cr.anchorMin = Vector2.zero; cr.anchorMax = Vector2.zero;
-            cr.pivot = Vector2.zero;
-            cr.sizeDelta = new Vector2(240, 250); cr.anchoredPosition = new Vector2(20, 120);
+            cr.anchorMin = new Vector2(0, 0); cr.anchorMax = new Vector2(0.4f, 0.5f);
+            cr.offsetMin = new Vector2(20, 20); cr.offsetMax = new Vector2(0, 0);
             container.transform.SetAsLastSibling(); 
             
             GameObject list = UIFactory.CreateObject("LayersList", container);
@@ -381,8 +380,8 @@ namespace NeXTMake.UI.Modules
 
             GameObject toggleBtn = UIFactory.CreateButton("Layers ☰", workspace, Vector2.zero, new Vector2(100, 30), Color.white, Color.black);
             RectTransform btRt = toggleBtn.GetComponent<RectTransform>();
-            btRt.anchorMin = Vector2.zero; btRt.anchorMax = Vector2.zero; btRt.pivot = Vector2.zero;
-            btRt.anchoredPosition = new Vector2(20, 130);
+            btRt.anchorMin = new Vector2(0, 0); btRt.anchorMax = new Vector2(0, 0); btRt.pivot = Vector2.zero;
+            btRt.anchoredPosition = new Vector2(20, 20);
             toggleBtn.GetComponent<Button>().onClick.AddListener(() => {
                 list.SetActive(!list.activeSelf);
                 if (list.activeSelf) controller.UpdateLayersPanel();

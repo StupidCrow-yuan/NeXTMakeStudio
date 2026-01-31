@@ -24,6 +24,12 @@ namespace NeXTMake.UI.Core
             {
                 c = new GameObject("Canvas", typeof(RectTransform), typeof(Canvas), typeof(CanvasScaler), typeof(GraphicRaycaster)).GetComponent<Canvas>();
                 c.renderMode = RenderMode.ScreenSpaceOverlay;
+                
+                // 添加窗口大小变化处理器
+                if (c.gameObject.GetComponent<WindowResizeHandler>() == null)
+                {
+                    c.gameObject.AddComponent<WindowResizeHandler>();
+                }
             }
             CanvasScaler s = c.GetComponent<CanvasScaler>();
             if (s == null) s = c.gameObject.AddComponent<CanvasScaler>();

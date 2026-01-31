@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Threading.Tasks;
 using NeXTMake.Core;
+using NeXTMake.UI.Core;
 
 #if UNITY_EDITOR || UNITY_STANDALONE
 using TMPro;
@@ -49,6 +50,35 @@ namespace NeXTMake.UI
 
             // 启动时显示选择对话框
             ShowSelectionDialog();
+
+            // 监听窗口大小变化
+            SetupWindowResizeListener();
+        }
+
+        /// <summary>
+        /// 设置窗口大小变化监听器
+        /// </summary>
+        private void SetupWindowResizeListener()
+        {
+            WindowResizeHandler resizeHandler = rootCanvas.gameObject.GetComponent<WindowResizeHandler>();
+            if (resizeHandler == null)
+            {
+                resizeHandler = rootCanvas.gameObject.AddComponent<WindowResizeHandler>();
+            }
+
+            resizeHandler.OnWindowResized += () => {
+                Debug.Log("[NeXTMakeStudioUIManager] 窗口大小变化，更新布局");
+                UpdateLayout();
+            };
+        }
+
+        /// <summary>
+        /// 更新布局以适应窗口大小变化
+        /// </summary>
+        private void UpdateLayout()
+        {
+            // 这里可以添加具体的布局更新逻辑
+            // 例如，更新各个面板的大小和位置
         }
 
         public void ShowSelectionDialog()
