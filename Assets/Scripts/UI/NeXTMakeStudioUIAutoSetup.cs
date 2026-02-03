@@ -99,8 +99,14 @@ namespace NeXTMake.UI
             script.uvPrintCheckmark = uvCard.transform.Find("Checkmark")?.GetComponent<Image>();
             script.print3DCheckmark = p3dCard.transform.Find("Checkmark")?.GetComponent<Image>();
             script.confirmButton = confirmBtn.GetComponent<Button>();
+            
+            // 不需要在这里绑定点击事件，因为StudioSelectionDialog的Initialize方法会自动绑定
+            // 我们只需要确保StudioSelectionDialog的Initialize方法被正确调用
 
             manager.selectionDialog = script;
+            // 手动调用Initialize方法，确保所有事件监听器都被正确绑定
+            // 因为如果我们立即将overlay设置为隐藏，Start方法可能不会被调用
+            script.Initialize();
             overlay.SetActive(false);
         }
     }

@@ -83,25 +83,34 @@ namespace NeXTMake.UI
 
         public void ShowSelectionDialog()
         {
+            Debug.Log("ShowSelectionDialog called");
             if (selectionDialog != null)
             {
+                Debug.Log("SelectionDialog found, initializing");
                 // 确保事件已初始化
                 if (selectionDialog.OnStudioSelected == null)
+                {
                     selectionDialog.OnStudioSelected = new UnityEngine.Events.UnityEvent<PrintMode>();
+                    Debug.Log("OnStudioSelected event created");
+                }
 
                 // 确保 SelectionDialog 在最上层，防止被其他 Layout 遮挡
                 if (selectionDialog.transform.parent != null) // Overlay
                 {
                     selectionDialog.transform.parent.SetAsLastSibling();
+                    Debug.Log("Set SelectionDialog parent as last sibling");
                 }
                 else
                 {
                     selectionDialog.transform.SetAsLastSibling();
+                    Debug.Log("Set SelectionDialog as last sibling");
                 }
 
                 selectionDialog.OnStudioSelected.RemoveAllListeners();
                 selectionDialog.OnStudioSelected.AddListener(OnStudioSelected);
+                Debug.Log("OnStudioSelected listener added");
                 selectionDialog.Show();
+                Debug.Log("SelectionDialog shown");
             }
             else
             {
@@ -112,24 +121,50 @@ namespace NeXTMake.UI
 
         void OnStudioSelected(PrintMode mode)
         {
+            Debug.Log($"OnStudioSelected called with mode: {mode}");
             currentMode = mode;
             
-            if (selectionDialog != null) selectionDialog.Hide();
+            if (selectionDialog != null)
+            {
+                selectionDialog.Hide();
+                Debug.Log("SelectionDialog hidden");
+            }
 
             // 切换布局
             ShowLayoutForMode(currentMode);
+            Debug.Log($"Layout for mode {mode} shown");
 
             // 通知模式管理器 (如果存在)
             if (printModeManager != null)
             {
                 printModeManager.SwitchMode(mode);
+                Debug.Log("PrintModeManager notified of mode change");
             }
         }
 
         void ShowLayoutForMode(PrintMode mode)
         {
-            if (uvPrintLayout != null) uvPrintLayout.gameObject.SetActive(mode == PrintMode.UVPrint);
-            if (print3DLayout != null) print3DLayout.gameObject.SetActive(mode == PrintMode.Print3D);
+            Debug.Log($"ShowLayoutForMode called with mode: {mode}");
+            if (uvPrintLayout != null)
+            {
+                bool uvActive = mode == PrintMode.UVPrint;
+                uvPrintLayout.gameObject.SetActive(uvActive);
+                Debug.Log($"UVPrintLayout set to active: {uvActive}");
+            }
+            else
+            {
+                Debug.LogWarning("uvPrintLayout is null");
+            }
+            if (print3DLayout != null)
+            {
+                bool print3DActive = mode == PrintMode.Print3D;
+                print3DLayout.gameObject.SetActive(print3DActive);
+                Debug.Log($"Print3DLayout set to active: {print3DActive}");
+            }
+            else
+            {
+                Debug.LogWarning("print3DLayout is null");
+            }
         }
 
         // 占位方法：保持接口兼容
