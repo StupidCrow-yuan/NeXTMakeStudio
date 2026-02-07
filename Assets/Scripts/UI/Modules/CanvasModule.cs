@@ -244,7 +244,7 @@ namespace NeXTMake.UI.Modules
             leftToolBar.AddComponent<Image>().color = Color.white;
 
             VerticalLayoutGroup ltbVlg = leftToolBar.AddComponent<VerticalLayoutGroup>();
-            ltbVlg.spacing = 15; ltbVlg.padding = new RectOffset(6, 6, 20, 10); ltbVlg.childAlignment = TextAnchor.UpperCenter;
+            ltbVlg.spacing = 6; ltbVlg.padding = new RectOffset(6, 6, 12, 8); ltbVlg.childAlignment = TextAnchor.UpperCenter;
 
             GameObject drawer = UIFactory.CreateObject("Drawer", leftArea);
             RectTransform dRect = drawer.GetComponent<RectTransform>();
@@ -255,7 +255,7 @@ namespace NeXTMake.UI.Modules
             dRect.offsetMax = Vector2.zero;
             drawer.AddComponent<Image>().color = Color.white; drawer.AddComponent<Outline>().effectColor = new Color(0.9f, 0.9f, 0.9f);
             VerticalLayoutGroup dVlg = drawer.AddComponent<VerticalLayoutGroup>();
-            dVlg.padding = new RectOffset(20, 20, 20, 20); dVlg.spacing = 15; dVlg.childControlHeight = false;
+            dVlg.padding = new RectOffset(16, 16, 16, 16); dVlg.spacing = 10; dVlg.childControlHeight = false;
 
             // USER REQ: Divider should be between the 1/6 tool column (Upload etc.) and the Drawer
             // Put it under leftArea so it's not affected by VerticalLayoutGroup.
@@ -271,16 +271,21 @@ namespace NeXTMake.UI.Modules
             // Ensure it's above the tool/drawer backgrounds
             divider.transform.SetAsLastSibling();
 
-            GameObject titleTxt = UIFactory.CreateText("Templates", drawer, 22, Color.black, Vector2.zero, new Vector2(0, 40), TextAnchor.MiddleLeft, FontStyle.Bold);
-            titleTxt.AddComponent<LayoutElement>().minHeight = 40;
+            GameObject titleTxt = UIFactory.CreateText("Templates", drawer, 20, Color.black, Vector2.zero, new Vector2(0, 32), TextAnchor.MiddleLeft, FontStyle.Bold);
+            titleTxt.AddComponent<LayoutElement>().minHeight = 32;
 
             GameObject searchBar = UIFactory.CreateObject("Search", drawer);
-            searchBar.AddComponent<Image>().color = new Color(0.95f, 0.95f, 0.95f);
-            searchBar.AddComponent<LayoutElement>().minHeight = 36;
+            searchBar.AddComponent<Image>().color = new Color(0.96f, 0.96f, 0.96f);
+            var searchLe = searchBar.AddComponent<LayoutElement>();
+            searchLe.minHeight = 28;
+            searchLe.preferredHeight = 28;
             InputField searchInput = searchBar.AddComponent<InputField>();
-            Text txt = UIFactory.CreateText("", searchBar, 14, Color.black, Vector2.zero, Vector2.zero).GetComponent<Text>();
+            Text txt = UIFactory.CreateText("", searchBar, 12, Color.black, Vector2.zero, Vector2.zero).GetComponent<Text>();
             searchInput.textComponent = txt;
-            UIFactory.CreateText("🔍 Search...", searchBar, 14, Color.gray, Vector2.zero, Vector2.zero);
+            GameObject placeholder = UIFactory.CreateText("Q Search", searchBar, 12, new Color(0.6f, 0.6f, 0.6f), Vector2.zero, Vector2.zero);
+            searchInput.placeholder = placeholder.GetComponent<Text>();
+            RectTransform txtRect = txt.rectTransform; UIFactory.Stretch(txtRect); txtRect.offsetMin = new Vector2(10, 2);
+            RectTransform phRect = placeholder.GetComponent<RectTransform>(); UIFactory.Stretch(phRect); phRect.offsetMin = new Vector2(10, 2);
 
             GameObject contentRoot = UIFactory.CreateObject("PanelContainer", drawer);
             contentRoot.AddComponent<LayoutElement>().flexibleHeight = 1;
@@ -315,23 +320,25 @@ namespace NeXTMake.UI.Modules
             };
             
             string[] tools = { "Upload", "Image AI", "Textures", "Templates", "Elements", "Text", "Projects" };
-            foreach(var t in tools) {
-
+            string[] icons = { "\u2191", "\u25C7", "\u25A3", "\u229E", "\u25A6", "T", "\uD83D\uDCC1" }; // ↑, ◇, ▣, ⊞, ▦, T, 📁 (folder)
+            for (int i = 0; i < tools.Length; i++) {
+                string t = tools[i];
+                string iconChar = i < icons.Length ? icons[i] : "";
                 GameObject btnObj = UIFactory.CreateObject("Btn_" + t, leftToolBar);
-                // USER REQ: Ensure each tool item has enough width for label
                 var btnLe = btnObj.AddComponent<LayoutElement>();
-                btnLe.minHeight = 60;
-                btnLe.minWidth = 0; // width driven by 1/6 layout
+                btnLe.minHeight = 44;
+                btnLe.minWidth = 0;
                 Image btnImg = btnObj.AddComponent<Image>(); btnImg.color = new Color(0,0,0,0.01f);
-                // Label: increase readability (bigger + darker)
-                GameObject lblObj = UIFactory.CreateText(t, btnObj, 12, new Color(0.25f, 0.25f, 0.25f), new Vector2(0, 6), new Vector2(0, 20), TextAnchor.MiddleCenter, FontStyle.Bold);
+                VerticalLayoutGroup btnVlg = btnObj.AddComponent<VerticalLayoutGroup>();
+                btnVlg.spacing = 2; btnVlg.padding = new RectOffset(2, 2, 4, 4); btnVlg.childAlignment = TextAnchor.MiddleCenter; btnVlg.childControlHeight = false; btnVlg.childForceExpandHeight = false;
+                if (!string.IsNullOrEmpty(iconChar)) {
+                    GameObject iconObj = UIFactory.CreateText(iconChar, btnObj, 16, new Color(0.35f, 0.35f, 0.35f), Vector2.zero, new Vector2(0, 18), TextAnchor.MiddleCenter);
+                    iconObj.AddComponent<LayoutElement>().minHeight = 18;
+                }
+                GameObject lblObj = UIFactory.CreateText(t, btnObj, 11, new Color(0.25f, 0.25f, 0.25f), Vector2.zero, new Vector2(0, 16), TextAnchor.MiddleCenter, FontStyle.Bold);
+                lblObj.AddComponent<LayoutElement>().minHeight = 14;
                 RectTransform lblRt = lblObj.GetComponent<RectTransform>();
-                lblRt.anchorMin = new Vector2(0, 0);
-                lblRt.anchorMax = new Vector2(1, 0);
-                lblRt.pivot = new Vector2(0.5f, 0);
-                lblRt.anchoredPosition = new Vector2(0, 6);
-                lblRt.sizeDelta = new Vector2(-12, 20);
-                
+                lblRt.anchorMin = new Vector2(0, 0); lblRt.anchorMax = new Vector2(1, 0); lblRt.pivot = new Vector2(0.5f, 0);
                 string type = t;
                 btnObj.AddComponent<Button>().onClick.AddListener(() => ShowSidePanel(type));
             }
@@ -654,16 +661,21 @@ namespace NeXTMake.UI.Modules
             };
             dd.AddOptions(inkOptions);
 
-            // --- Global Preview/Print Buttons Section ---
+            // --- Global Preview/Print Buttons Section (standardized) ---
             GameObject bottomRow = UIFactory.CreateObject("BottomActions", rightPanel);
             RectTransform brRt = bottomRow.GetComponent<RectTransform>();
             brRt.anchorMin = new Vector2(0, 0); brRt.anchorMax = new Vector2(1, 0);
-            brRt.pivot = new Vector2(0.5f, 0); brRt.sizeDelta = new Vector2(-40, 60); brRt.anchoredPosition = new Vector2(0, 20);
+            brRt.pivot = new Vector2(0.5f, 0); brRt.sizeDelta = new Vector2(-40, 56); brRt.anchoredPosition = new Vector2(0, 18);
             
             HorizontalLayoutGroup ahlg = bottomRow.AddComponent<HorizontalLayoutGroup>();
-            ahlg.spacing = 15; ahlg.childControlWidth = true; ahlg.childForceExpandWidth = true;
-            UIFactory.CreateButton("Preview", bottomRow, Vector2.zero, new Vector2(0, 40), Color.white, Color.black).GetComponent<Button>().onClick.AddListener(() => controller.OnPreviewRequested?.Invoke());
-            UIFactory.CreateButton("Print", bottomRow, Vector2.zero, new Vector2(0, 40), UIFactory.COLOR_ACCENT_GREEN, Color.white).GetComponent<Button>().onClick.AddListener(() => controller.OnPrintRequested?.Invoke());
+            ahlg.spacing = 12; ahlg.padding = new RectOffset(0, 0, 0, 0); ahlg.childControlWidth = true; ahlg.childForceExpandWidth = true; ahlg.childControlHeight = true; ahlg.childForceExpandHeight = false;
+            GameObject previewBtn = UIFactory.CreateButton("Preview", bottomRow, Vector2.zero, new Vector2(0, 40), Color.white, new Color(0.2f, 0.2f, 0.2f));
+            previewBtn.AddComponent<LayoutElement>().minHeight = 40;
+            previewBtn.AddComponent<Outline>().effectColor = new Color(0.75f, 0.75f, 0.75f); previewBtn.GetComponent<Outline>().effectDistance = new Vector2(1, 1);
+            previewBtn.GetComponent<Button>().onClick.AddListener(() => controller.OnPreviewRequested?.Invoke());
+            GameObject printBtn = UIFactory.CreateButton("Print", bottomRow, Vector2.zero, new Vector2(0, 40), UIFactory.COLOR_ACCENT_GREEN, Color.white);
+            printBtn.AddComponent<LayoutElement>().minHeight = 40;
+            printBtn.GetComponent<Button>().onClick.AddListener(() => controller.OnPrintRequested?.Invoke());
         }
 
         private static void CreateGlobalInfoPanel(GameObject parent, CanvasController controller)
@@ -790,12 +802,21 @@ namespace NeXTMake.UI.Modules
             };
             CreateCustomDropdown("MatDropdown", matRow, materials, 0, (idx) => {}).AddComponent<LayoutElement>().flexibleWidth = 1;
 
-            GameObject colorBox = UIFactory.CreateObject("ColorBox", matRow);
-            colorBox.AddComponent<LayoutElement>().minWidth = 24; colorBox.GetComponent<LayoutElement>().minHeight = 24;
-            colorBox.AddComponent<Image>().color = Color.white;
-            colorBox.AddComponent<Outline>().effectColor = Color.gray;
-            colorBox.AddComponent<Button>().onClick.AddListener(() => CreateColorPickerModal(controller.editorArea, (c) => {
-                colorBox.GetComponent<Image>().color = c;
+            GameObject setColorBackBtn = UIFactory.CreateObject("SetColorBack", matRow);
+            var setColorBackLe = setColorBackBtn.AddComponent<LayoutElement>();
+            setColorBackLe.minWidth = 120; setColorBackLe.minHeight = 36; setColorBackLe.preferredWidth = 130; setColorBackLe.preferredHeight = 36;
+            Image setColorBackBg = setColorBackBtn.AddComponent<Image>(); setColorBackBg.color = new Color(0.95f, 0.95f, 0.95f);
+            Outline setColorBackOut = setColorBackBtn.AddComponent<Outline>(); setColorBackOut.effectColor = new Color(0.75f, 0.75f, 0.75f); setColorBackOut.effectDistance = new Vector2(1, 1);
+            HorizontalLayoutGroup setColorBackHlg = setColorBackBtn.AddComponent<HorizontalLayoutGroup>();
+            setColorBackHlg.spacing = 6; setColorBackHlg.padding = new RectOffset(8, 8, 6, 6); setColorBackHlg.childAlignment = TextAnchor.MiddleCenter; setColorBackHlg.childControlWidth = false; setColorBackHlg.childForceExpandWidth = false;
+            GameObject colorSwatch = UIFactory.CreateObject("ColorSwatch", setColorBackBtn);
+            Image colorBoxImg = colorSwatch.AddComponent<Image>(); colorBoxImg.color = Color.white;
+            colorSwatch.AddComponent<Outline>().effectColor = new Color(0.65f, 0.65f, 0.65f);
+            var swatchLe = colorSwatch.AddComponent<LayoutElement>(); swatchLe.minWidth = 20; swatchLe.minHeight = 20; swatchLe.preferredWidth = 20; swatchLe.preferredHeight = 20;
+            Text setColorBackLabel = UIFactory.CreateText("Set Color Back", setColorBackBtn, 12, new Color(0.2f, 0.2f, 0.2f), Vector2.zero, Vector2.zero, TextAnchor.MiddleCenter).GetComponent<Text>();
+            setColorBackLabel.raycastTarget = false;
+            setColorBackBtn.AddComponent<Button>().onClick.AddListener(() => CreateColorPickerModal(controller.editorArea, (c) => {
+                colorBoxImg.color = c;
                 controller.SetPaperColor(c);
             }));
 
@@ -816,7 +837,7 @@ namespace NeXTMake.UI.Modules
                 syncBtn.GetComponent<Image>().color = nextOn ? UIFactory.COLOR_ACCENT_GREEN : Color.gray;
                 syncBtn.GetComponentInChildren<Text>().text = nextOn ? "✔" : "";
                 controller.SetUseMaterialColor(nextOn);
-                if (nextOn) controller.SetPaperColor(colorBox.GetComponent<Image>().color);
+                if (nextOn) controller.SetPaperColor(colorBoxImg.color);
             });
             var bgLabel = UIFactory.CreateText("Use material color as canvas background color ⓘ", bgCheck, 11, Color.black, Vector2.zero, Vector2.zero, TextAnchor.MiddleLeft);
             // Let label take remaining space, but don't force the row to expand other children
@@ -851,7 +872,7 @@ namespace NeXTMake.UI.Modules
             Text chokeValue = UIFactory.CreateText("0.2 mm", chokeHeader, 13, Color.black, Vector2.zero, new Vector2(60, 20), TextAnchor.MiddleRight, FontStyle.Bold).GetComponent<Text>();
 
             GameObject sliderObj = UIFactory.CreateObject("Slider", chokeSection);
-            sliderObj.AddComponent<LayoutElement>().minHeight = 20;
+            sliderObj.AddComponent<LayoutElement>().minHeight = 24;
             UIFactory.Stretch(sliderObj.GetComponent<RectTransform>());
             
             Slider slider = sliderObj.AddComponent<Slider>();
@@ -860,7 +881,7 @@ namespace NeXTMake.UI.Modules
 
             GameObject track = UIFactory.CreateObject("Track", sliderObj);
             RectTransform tr = track.GetComponent<RectTransform>(); tr.anchorMin = new Vector2(0, 0.5f); tr.anchorMax = new Vector2(1, 0.5f);
-            tr.sizeDelta = new Vector2(0, 4); track.AddComponent<Image>().color = new Color(0.9f, 0.9f, 0.9f);
+            tr.sizeDelta = new Vector2(0, 6); track.AddComponent<Image>().color = new Color(0.88f, 0.88f, 0.88f);
             
             GameObject fill = UIFactory.CreateObject("Fill", track);
             RectTransform fr = fill.GetComponent<RectTransform>(); fr.anchorMin = Vector2.zero; fr.anchorMax = new Vector2(0.4f, 1);
@@ -869,8 +890,9 @@ namespace NeXTMake.UI.Modules
 
             GameObject handle = UIFactory.CreateObject("Handle", sliderObj);
             RectTransform hr = handle.GetComponent<RectTransform>(); hr.anchorMin = new Vector2(0.4f, 0.5f); hr.anchorMax = new Vector2(0.4f, 0.5f);
-            hr.sizeDelta = new Vector2(12, 12); handle.AddComponent<Image>().color = Color.white; // Shrink handle from 16 to 12
-            handle.AddComponent<Outline>().effectColor = UIFactory.COLOR_ACCENT_GREEN;
+            hr.sizeDelta = new Vector2(16, 16); hr.pivot = new Vector2(0.5f, 0.5f);
+            Image handleImg = handle.AddComponent<Image>(); handleImg.color = Color.white;
+            Outline handleOut = handle.AddComponent<Outline>(); handleOut.effectColor = new Color(0.6f, 0.6f, 0.6f); handleOut.effectDistance = new Vector2(1, 1);
             slider.handleRect = hr;
 
             // 6. Print Area
