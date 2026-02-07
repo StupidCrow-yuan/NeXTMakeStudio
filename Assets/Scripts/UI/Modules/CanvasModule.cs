@@ -320,10 +320,12 @@ namespace NeXTMake.UI.Modules
             };
             
             string[] tools = { "Upload", "Image AI", "Textures", "Templates", "Elements", "Text", "Projects" };
-            string[] icons = { "\u2191", "\u25C7", "\u25A3", "\u229E", "\u25A6", "T", "\uD83D\uDCC1" }; // ↑, ◇, ▣, ⊞, ▦, T, 📁 (folder)
+            string[] iconNames = { "Upload", "ImageAI", "Textures", "Templates", "Elements", "Text", "Projects" }; // Resources/Icons/xxx.png
+            string[] iconChars = { "\u2191", "\u25C7", "\u25A3", "\u229E", "\u25A6", "T", "\uD83D\uDCC1" }; // fallback when no sprite
             for (int i = 0; i < tools.Length; i++) {
                 string t = tools[i];
-                string iconChar = i < icons.Length ? icons[i] : "";
+                string resName = i < iconNames.Length ? iconNames[i] : "";
+                string iconChar = i < iconChars.Length ? iconChars[i] : "";
                 GameObject btnObj = UIFactory.CreateObject("Btn_" + t, leftToolBar);
                 var btnLe = btnObj.AddComponent<LayoutElement>();
                 btnLe.minHeight = 44;
@@ -331,7 +333,12 @@ namespace NeXTMake.UI.Modules
                 Image btnImg = btnObj.AddComponent<Image>(); btnImg.color = new Color(0,0,0,0.01f);
                 VerticalLayoutGroup btnVlg = btnObj.AddComponent<VerticalLayoutGroup>();
                 btnVlg.spacing = 2; btnVlg.padding = new RectOffset(2, 2, 4, 4); btnVlg.childAlignment = TextAnchor.MiddleCenter; btnVlg.childControlHeight = false; btnVlg.childForceExpandHeight = false;
-                if (!string.IsNullOrEmpty(iconChar)) {
+                Sprite iconSprite = !string.IsNullOrEmpty(resName) ? Resources.Load<Sprite>("Icons/" + resName) : null;
+                if (iconSprite != null) {
+                    GameObject iconObj = UIFactory.CreateObject("Icon", btnObj);
+                    Image iconImg = iconObj.AddComponent<Image>(); iconImg.sprite = iconSprite; iconImg.color = new Color(0.4f, 0.4f, 0.4f);
+                    var iconLe = iconObj.AddComponent<LayoutElement>(); iconLe.minWidth = 22; iconLe.minHeight = 22; iconLe.preferredWidth = 22; iconLe.preferredHeight = 22;
+                } else if (!string.IsNullOrEmpty(iconChar)) {
                     GameObject iconObj = UIFactory.CreateText(iconChar, btnObj, 16, new Color(0.35f, 0.35f, 0.35f), Vector2.zero, new Vector2(0, 18), TextAnchor.MiddleCenter);
                     iconObj.AddComponent<LayoutElement>().minHeight = 18;
                 }
