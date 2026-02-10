@@ -829,24 +829,49 @@ namespace NeXTMake.UI
                 }
             }
 
-            // 4. Add Moving Light Effect - subtle scan highlight, NOT too bright
+            // 4. Lighting setup for mini preview
+            // The scene uses Standard shader on white surfaces. With high ambient + directional,
+            // surfaces are already at max brightness and spotlights add no visible effect.
+            // Strategy: dim ambient so the base image is slightly muted, then a moving spotlight
+            // brings a local area to full brightness -> visible texture detail highlight.
             Vector3 contentCenterLocal = new Vector3(0f, 0.06f, 0f);
 
+            // Dim directional light (key light): just enough to see the image, not fully lit
+            GameObject keyLightObj = new GameObject("KeyLight");
+            keyLightObj.transform.SetParent(miniDesignStage.transform);
+            keyLightObj.transform.rotation = Quaternion.Euler(50, 30, 0);
+            Light keyLight = keyLightObj.AddComponent<Light>();
+            keyLight.type = LightType.Directional;
+            keyLight.color = Color.white;
+            keyLight.intensity = 0.45f; // Low: image visible but muted
+
+            // Moving spotlight: this creates the visible sweep effect
             GameObject lightObj = new GameObject("MovingLight");
             lightObj.transform.SetParent(miniDesignStage.transform);
             Light l = lightObj.AddComponent<Light>();
             l.type = LightType.Spot;
-            l.range = 15f;
-            l.spotAngle = 35f;   // Moderate cone
-            l.intensity = 1.8f;  // Gentle highlight, not blinding
+            l.range = 20f;
+            l.spotAngle = 40f;    // Covers roughly 1/3 of the image at a time
+            l.intensity = 2.5f;   // Brings the lit region to near-full brightness
             l.color = new Color(1f, 0.99f, 0.97f);
-            l.shadows = LightShadows.Soft;
-            lightObj.transform.localPosition = new Vector3(2, 6, 4);
+            l.shadows = LightShadows.None; // No shadows needed for a flat surface
+            lightObj.transform.localPosition = new Vector3(2, 5, 3);
             lightObj.transform.LookAt(miniDesignStage.transform.TransformPoint(contentCenterLocal));
-            lightObj.AddComponent<MovingLightEffect>().contentCenterLocal = contentCenterLocal;
+            var mle = lightObj.AddComponent<MovingLightEffect>();
+            mle.contentCenterLocal = contentCenterLocal;
+            mle.orbitRadius = 3f;
+            mle.orbitHeight = 5f;
+            mle.orbitSpeed = 0.6f;
 
             miniModelViewer.modelContainer = miniDesignStage;
             miniModelViewer.SetModel(miniDesignStage);
+
+            // Override ambient light AFTER SetModel (InitializeRenderer sets it higher).
+            // We need low ambient so the spotlight sweep is visible against a dimmer base.
+            RenderSettings.ambientMode = UnityEngine.Rendering.AmbientMode.Trilight;
+            RenderSettings.ambientSkyColor = new Color(0.28f, 0.28f, 0.28f, 1f);
+            RenderSettings.ambientEquatorColor = new Color(0.22f, 0.22f, 0.22f, 1f);
+            RenderSettings.ambientGroundColor = new Color(0.18f, 0.18f, 0.18f, 1f);
         }
 
         public void ZoomToFit()
@@ -909,17 +934,9 @@ namespace NeXTMake.UI
         private void RefreshMiniPreviewOnResize()
         {
             if (miniPreviewPanel == null || !miniPreviewPanel.activeSelf) return;
-            if (miniModelViewer != null)
-            {
-                // Re-create RenderTexture at new size
-                miniModelViewer.InitializeRenderer();
-                // Re-aim camera so model stays in view after aspect/size change
-                miniModelViewer.FocusOnModel();
-            }
-            if (miniPreviewPanel != null)
-            {
-                LayoutRebuilder.ForceRebuildLayoutImmediate(miniPreviewPanel.GetComponent<RectTransform>());
-            }
+            // Full rebuild: the RenderTexture size changed, and the old camera/model references
+            // may be stale. Rebuilding the entire 3D scene + camera is the safest approach.
+            UpdateMiniPreview();
         }
 
         void OnDisable()
@@ -981,20 +998,25 @@ namespace NeXTMake.UI
         }
     }
 
-    // Helper component for moving light - gentle sweep across the content area
+    // Orbiting spotlight that sweeps across the content, highlighting texture detail locally
     public class MovingLightEffect : MonoBehaviour
     {
         public Vector3 contentCenterLocal = new Vector3(0f, 0.06f, 0f);
+        public float orbitRadius = 3f;
+        public float orbitHeight = 5f;
+        public float orbitSpeed = 0.6f;
         private float startTime;
+
         void Start() { startTime = Time.time; }
+
         void Update()
         {
-            float t = (Time.time - startTime) * 0.8f; // Slower orbit
-            // Orbit at moderate distance so highlight sweeps across image gently
-            float x = Mathf.Sin(t) * 4f;
-            float z = Mathf.Cos(t) * 4f;
-            transform.localPosition = new Vector3(x, 7f, z); // Higher up = softer, wider illumination
-            // Always look at content center
+            float t = (Time.time - startTime) * orbitSpeed;
+            // Slightly elliptical orbit so the light sweeps across different parts of the image
+            float x = Mathf.Sin(t) * orbitRadius;
+            float z = Mathf.Cos(t * 0.7f) * orbitRadius * 0.8f; // Slower Z for non-circular path
+            transform.localPosition = new Vector3(x, orbitHeight, z);
+            // Always aim at the content center
             if (transform.parent != null)
             {
                 Vector3 targetWorld = transform.parent.TransformPoint(contentCenterLocal);

@@ -186,18 +186,14 @@ namespace NeXTMake.UI.Modules
             // 1. Create a proper Grid floor
             Create3DGrid(sceneContainer);
 
-            // 2. Add Focused Spotlight
+            // 2. Scene light: directional base only (spotlight added in Setup3DDesign)
             GameObject lightObj = new GameObject("PreviewLight");
             lightObj.transform.SetParent(sceneContainer.transform);
-            lightObj.transform.position = new Vector3(0, 8, 6);
-            lightObj.transform.LookAt(Vector3.zero);
+            lightObj.transform.rotation = Quaternion.Euler(50, 30, 0);
             Light l = lightObj.AddComponent<Light>();
-            l.type = LightType.Spot;
-            l.spotAngle = 60f;
-            l.range = 12f;
-            l.intensity = 1.6f;
-            l.color = new Color(1f, 0.98f, 0.92f);
-            l.shadows = LightShadows.Soft;
+            l.type = LightType.Directional;
+            l.color = Color.white;
+            l.intensity = 0.5f;
 
             // Back Button (Top Left) - White circle with arrow
             GameObject backBtnObj = UIFactory.CreateObject("BackBtn", previewView);
@@ -689,18 +685,39 @@ namespace NeXTMake.UI.Modules
             // Re-create Grid and Light if they were destroyed
             Create3DGrid(viewer.modelContainer);
             
-            // 聚光灯打在设计区域，适度聚焦，不会过曝
+            // Lighting for Preview: dim directional base + moving spotlight for texture detail
+            // Directional (key): low so image is visible but muted
+            GameObject keyLightObj = new GameObject("PreviewKeyLight");
+            keyLightObj.transform.SetParent(viewer.modelContainer.transform);
+            keyLightObj.transform.rotation = Quaternion.Euler(50, 30, 0);
+            Light keyLight = keyLightObj.AddComponent<Light>();
+            keyLight.type = LightType.Directional;
+            keyLight.color = Color.white;
+            keyLight.intensity = 0.5f;
+
+            // Moving spotlight: sweeps across design, highlighting texture
             GameObject lightObj = new GameObject("PreviewLight");
             lightObj.transform.SetParent(viewer.modelContainer.transform);
-            lightObj.transform.localPosition = new Vector3(0, 8, 6);
+            lightObj.transform.localPosition = new Vector3(2, 6, 4);
             lightObj.transform.LookAt(viewer.modelContainer.transform.TransformPoint(new Vector3(0, 0.06f, 0)));
             Light l = lightObj.AddComponent<Light>();
             l.type = LightType.Spot;
-            l.spotAngle = 50f;   // 覆盖设计区域但不过分集中
-            l.range = 18f;
-            l.intensity = 2.0f;  // 温和，不会使中心过曝
-            l.color = new Color(1f, 0.99f, 0.96f);
-            l.shadows = LightShadows.Soft;
+            l.spotAngle = 42f;   // Covers ~1/3 of design area at a time
+            l.range = 20f;
+            l.intensity = 2.2f;  // Brings lit region to near-full brightness
+            l.color = new Color(1f, 0.99f, 0.97f);
+            l.shadows = LightShadows.None;
+            var mle = lightObj.AddComponent<NeXTMake.UI.MovingLightEffect>();
+            mle.contentCenterLocal = new Vector3(0f, 0.06f, 0f);
+            mle.orbitRadius = 4f;
+            mle.orbitHeight = 6f;
+            mle.orbitSpeed = 0.5f;
+
+            // Low ambient for Preview so spotlight sweep is visible
+            RenderSettings.ambientMode = UnityEngine.Rendering.AmbientMode.Trilight;
+            RenderSettings.ambientSkyColor = new Color(0.3f, 0.3f, 0.3f, 1f);
+            RenderSettings.ambientEquatorColor = new Color(0.25f, 0.25f, 0.25f, 1f);
+            RenderSettings.ambientGroundColor = new Color(0.2f, 0.2f, 0.2f, 1f);
 
             // 1. Root container for the design
             GameObject designStage = new GameObject("DesignStage");
