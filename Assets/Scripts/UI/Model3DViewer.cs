@@ -79,19 +79,27 @@ namespace NeXTMake.UI
             renderTexture = new RenderTexture(width, height, 24);
             renderTexture.antiAliasing = 8; 
 
-            // 如果提供了外部相机，使用它；否则创建新相机
-            if (renderCamera == null)
+            // Reuse existing camera if available; only create a new one on first init
+            bool isReinit = (modelCamera != null);
+            Vector3 savedCamPos = isReinit ? modelCamera.transform.position : Vector3.zero;
+            Quaternion savedCamRot = isReinit ? modelCamera.transform.rotation : Quaternion.identity;
+            float savedFOV = isReinit ? modelCamera.fieldOfView : 60f;
+
+            if (modelCamera == null)
             {
-                GameObject cameraObj = new GameObject("Model3DCamera");
-                cameraObj.transform.SetParent(transform);
-                modelCamera = cameraObj.AddComponent<Camera>();
-            }
-            else
-            {
-                modelCamera = renderCamera;
+                if (renderCamera != null)
+                {
+                    modelCamera = renderCamera;
+                }
+                else
+                {
+                    GameObject cameraObj = new GameObject("Model3DCamera");
+                    cameraObj.transform.SetParent(transform);
+                    modelCamera = cameraObj.AddComponent<Camera>();
+                }
             }
 
-            // 配置相机
+            // Configure camera (reuses existing object)
             modelCamera.clearFlags = CameraClearFlags.SolidColor;
             modelCamera.backgroundColor = new Color(0.12f, 0.12f, 0.12f, 1f); 
             modelCamera.cullingMask = renderLayer;
@@ -101,9 +109,20 @@ namespace NeXTMake.UI
             modelCamera.aspect = (height > 0) ? ((float)width / height) : ((float)Screen.width / Screen.height);
             
             modelCamera.orthographic = false;
-            modelCamera.fieldOfView = 60f;
             modelCamera.nearClipPlane = 0.1f; 
-            modelCamera.farClipPlane = 1000f; 
+            modelCamera.farClipPlane = 1000f;
+
+            // Restore camera transform on reinit so view is not lost
+            if (isReinit)
+            {
+                modelCamera.transform.position = savedCamPos;
+                modelCamera.transform.rotation = savedCamRot;
+                modelCamera.fieldOfView = savedFOV;
+            }
+            else
+            {
+                modelCamera.fieldOfView = 60f;
+            }
             
             // 创建模型容器
             if (modelContainer == null)
@@ -150,19 +169,21 @@ namespace NeXTMake.UI
                 Debug.Log("[Model3DViewer] 相机已启用");
             }
 
-            // 调整相机位置以查看模型
-            if (currentModel == null)
+            // 调整相机位置以查看模型 (only on first init, not reinit)
+            if (!isReinit)
             {
-                // 如果没有模型，设置默认相机位置
-                if (modelCamera != null)
+                if (currentModel == null)
                 {
-                    modelCamera.transform.position = new Vector3(0, 0, -5);
-                    modelCamera.transform.rotation = Quaternion.identity;
+                    if (modelCamera != null)
+                    {
+                        modelCamera.transform.position = new Vector3(0, 0, -5);
+                        modelCamera.transform.rotation = Quaternion.identity;
+                    }
                 }
-            }
-            else
-            {
-                FocusOnModel();
+                else
+                {
+                    FocusOnModel();
+                }
             }
         }
 

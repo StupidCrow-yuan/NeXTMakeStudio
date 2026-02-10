@@ -730,13 +730,16 @@ namespace NeXTMake.UI
             GameObject container = new GameObject("Container");
             container.transform.SetParent(miniDesignStage.transform);
 
-            // 2. Setup Paper & Content
+            // 2. Setup Paper & Content (Standard shader so it responds to lights)
             GameObject paperPlane = GameObject.CreatePrimitive(PrimitiveType.Quad);
             paperPlane.transform.SetParent(container.transform);
             paperPlane.transform.localScale = new Vector3(6, 6, 1);
             paperPlane.transform.localRotation = Quaternion.Euler(90, 0, 0);
-            paperPlane.GetComponent<Renderer>().material = new Material(Shader.Find("Standard"));
-            paperPlane.GetComponent<Renderer>().material.color = Color.white;
+            Material paperMat = new Material(Shader.Find("Standard"));
+            paperMat.color = Color.white;
+            paperMat.SetFloat("_Glossiness", 0.2f); // Slight gloss so light sweep is visible
+            paperMat.SetFloat("_Metallic", 0f);
+            paperPlane.GetComponent<Renderer>().material = paperMat;
 
             // 3. Get camera and ensure it's initialized
             Camera cam = miniModelViewer.GetComponentInChildren<Camera>();
@@ -812,20 +815,53 @@ namespace NeXTMake.UI
                 }
                 else
                 {
-                    // Fallback: old flat clone for non-image or non-texture mode
-                    GameObject copy = Object.Instantiate(currentSelection, worldCanvas.transform);
-                    copy.SetActive(true);
-                    if (selRt != null) copy.GetComponent<RectTransform>().anchoredPosition = selRt.anchoredPosition;
+                    // Create a lit 3D Quad instead of an unlit UI clone.
+                    // UI/Default shader ignores scene lights entirely, so we use Standard shader
+                    // on a 3D Quad so the spotlight sweep is visible on the content.
+                    GameObject quad = GameObject.CreatePrimitive(PrimitiveType.Quad);
+                    quad.name = "ContentQuad";
+                    quad.transform.SetParent(container.transform, false);
+                    quad.transform.localRotation = Quaternion.Euler(90, 0, 0);
+                    quad.transform.localPosition = new Vector3(0, 0.07f, 0); // Slightly above paper
 
-                    if (copy.GetComponent<ObjectManipulator>()) Destroy(copy.GetComponent<ObjectManipulator>());
-                    if (copy.GetComponent<BoxCollider2D>()) Destroy(copy.GetComponent<BoxCollider2D>());
-                    if (copy.GetComponent<Outline>()) Destroy(copy.GetComponent<Outline>());
+                    // Size: convert UI pixel size to world units (paper is 6 units for 600px)
+                    float worldScale = 6f / 600f;
+                    float qw = selRt != null ? selRt.rect.width * worldScale : 2f;
+                    float qh = selRt != null ? selRt.rect.height * worldScale : 2f;
+                    quad.transform.localScale = new Vector3(qw, qh, 1f);
 
-                    Transform rotHandle = copy.transform.Find("RotationHandle");
-                    if (rotHandle != null) Destroy(rotHandle.gameObject);
+                    // Position offset from center
+                    if (selRt != null)
+                    {
+                        Vector2 pos = selRt.anchoredPosition;
+                        quad.transform.localPosition = new Vector3(
+                            pos.x * worldScale,
+                            0.07f,
+                            -pos.y * worldScale // UI Y up → world Z forward (inverted for top-down)
+                        );
+                    }
 
-                    copy.transform.localPosition = new Vector3(copy.transform.localPosition.x, copy.transform.localPosition.y, -1f);
-                    SetLayerRecursive(copy, previewLayer);
+                    // Material: Standard shader so it responds to lights
+                    Material mat = new Material(Shader.Find("Standard"));
+                    mat.SetFloat("_Glossiness", 0.3f); // Some shininess for light reflection
+                    mat.SetFloat("_Metallic", 0f);
+
+                    if (selImg != null && selImg.sprite != null && selImg.sprite.texture != null)
+                    {
+                        mat.mainTexture = selImg.sprite.texture;
+                        mat.color = selImg.color;
+                    }
+                    else if (selImg != null)
+                    {
+                        // Pure color block
+                        mat.color = selImg.color;
+                    }
+                    else
+                    {
+                        mat.color = Color.gray;
+                    }
+                    quad.GetComponent<Renderer>().material = mat;
+                    SetLayerRecursive(quad, previewLayer);
                 }
             }
 
@@ -836,42 +872,54 @@ namespace NeXTMake.UI
             // brings a local area to full brightness -> visible texture detail highlight.
             Vector3 contentCenterLocal = new Vector3(0f, 0.06f, 0f);
 
-            // Dim directional light (key light): just enough to see the image, not fully lit
+            // Directional key light: base illumination
             GameObject keyLightObj = new GameObject("KeyLight");
             keyLightObj.transform.SetParent(miniDesignStage.transform);
             keyLightObj.transform.rotation = Quaternion.Euler(50, 30, 0);
             Light keyLight = keyLightObj.AddComponent<Light>();
             keyLight.type = LightType.Directional;
             keyLight.color = Color.white;
-            keyLight.intensity = 0.45f; // Low: image visible but muted
+            keyLight.intensity = 0.55f;
+            keyLight.cullingMask = -1; // Affect all layers
+            SetLayerRecursive(keyLightObj, previewLayer);
 
-            // Moving spotlight: this creates the visible sweep effect
+            // Moving spotlight: aims straight down, spot moves with the light orbit.
+            // Height 8, spotAngle 10° → diameter ≈ 2*8*tan(5°) ≈ 1.4 units (~1/20 of 6x6 paper)
             GameObject lightObj = new GameObject("MovingLight");
             lightObj.transform.SetParent(miniDesignStage.transform);
             Light l = lightObj.AddComponent<Light>();
             l.type = LightType.Spot;
-            l.range = 20f;
-            l.spotAngle = 40f;    // Covers roughly 1/3 of the image at a time
-            l.intensity = 2.5f;   // Brings the lit region to near-full brightness
+            l.range = 25f;
+            l.spotAngle = 10f;
+            l.innerSpotAngle = 6f;
+            l.intensity = 2.5f;
             l.color = new Color(1f, 0.99f, 0.97f);
-            l.shadows = LightShadows.None; // No shadows needed for a flat surface
-            lightObj.transform.localPosition = new Vector3(2, 5, 3);
-            lightObj.transform.LookAt(miniDesignStage.transform.TransformPoint(contentCenterLocal));
+            l.shadows = LightShadows.None;
+            l.cullingMask = -1; // Affect all layers
+            lightObj.transform.localPosition = new Vector3(0, 8, 0);
+            lightObj.transform.rotation = Quaternion.LookRotation(Vector3.down, Vector3.forward);
+            SetLayerRecursive(lightObj, previewLayer);
             var mle = lightObj.AddComponent<MovingLightEffect>();
-            mle.contentCenterLocal = contentCenterLocal;
-            mle.orbitRadius = 3f;
-            mle.orbitHeight = 5f;
-            mle.orbitSpeed = 0.6f;
+            mle.surfaceY = contentCenterLocal.y;
+            mle.orbitRadius = 2.0f;
+            mle.orbitHeight = 8f;
+            mle.orbitSpeed = 0.4f;
 
             miniModelViewer.modelContainer = miniDesignStage;
             miniModelViewer.SetModel(miniDesignStage);
 
-            // Override ambient light AFTER SetModel (InitializeRenderer sets it higher).
-            // We need low ambient so the spotlight sweep is visible against a dimmer base.
+            // Disable Model3DViewer's own SceneLight — it's too bright (1.2) and drowns
+            // out the moving spotlight. We use our own KeyLight + MovingLight instead.
+            if (miniModelViewer.sceneLight != null)
+            {
+                miniModelViewer.sceneLight.enabled = false;
+            }
+
+            // Low ambient so the spotlight sweep creates visible contrast
             RenderSettings.ambientMode = UnityEngine.Rendering.AmbientMode.Trilight;
-            RenderSettings.ambientSkyColor = new Color(0.28f, 0.28f, 0.28f, 1f);
-            RenderSettings.ambientEquatorColor = new Color(0.22f, 0.22f, 0.22f, 1f);
-            RenderSettings.ambientGroundColor = new Color(0.18f, 0.18f, 0.18f, 1f);
+            RenderSettings.ambientSkyColor = new Color(0.3f, 0.3f, 0.3f, 1f);
+            RenderSettings.ambientEquatorColor = new Color(0.25f, 0.25f, 0.25f, 1f);
+            RenderSettings.ambientGroundColor = new Color(0.2f, 0.2f, 0.2f, 1f);
         }
 
         public void ZoomToFit()
@@ -894,6 +942,22 @@ namespace NeXTMake.UI
             {
                 RecordDelete(currentSelection);
                 Deselect();
+            }
+
+            // 2. Debounced mini preview rebuild after window resize stops.
+            // We only re-initialize the RenderTexture (not the whole scene) to avoid flash.
+            if (resizeDebounceTimer > 0f)
+            {
+                resizeDebounceTimer -= Time.unscaledDeltaTime;
+                if (resizeDebounceTimer <= 0f)
+                {
+                    resizeDebounceTimer = -1f;
+                    if (miniModelViewer != null && miniPreviewPanel != null && miniPreviewPanel.activeSelf)
+                    {
+                        // Just refresh the RenderTexture size, keeping the scene intact
+                        miniModelViewer.InitializeRenderer();
+                    }
+                }
             }
         }
 
@@ -931,12 +995,14 @@ namespace NeXTMake.UI
             }
         }
 
+        private float resizeDebounceTimer = -1f;
+        private const float RESIZE_DEBOUNCE_DELAY = 0.4f;
+
         private void RefreshMiniPreviewOnResize()
         {
             if (miniPreviewPanel == null || !miniPreviewPanel.activeSelf) return;
-            // Full rebuild: the RenderTexture size changed, and the old camera/model references
-            // may be stale. Rebuilding the entire 3D scene + camera is the safest approach.
-            UpdateMiniPreview();
+            // Reset timer on each resize frame; rebuild only fires once resizing stops.
+            resizeDebounceTimer = RESIZE_DEBOUNCE_DELAY;
         }
 
         void OnDisable()
@@ -998,13 +1064,13 @@ namespace NeXTMake.UI
         }
     }
 
-    // Orbiting spotlight that sweeps across the content, highlighting texture detail locally
+    // Orbiting spotlight that aims STRAIGHT DOWN so the bright spot moves across the surface.
     public class MovingLightEffect : MonoBehaviour
     {
-        public Vector3 contentCenterLocal = new Vector3(0f, 0.06f, 0f);
-        public float orbitRadius = 3f;
-        public float orbitHeight = 5f;
-        public float orbitSpeed = 0.6f;
+        public float surfaceY = 0.06f; // Y of the content surface in parent local space
+        public float orbitRadius = 2f;
+        public float orbitHeight = 12f;
+        public float orbitSpeed = 0.4f;
         private float startTime;
 
         void Start() { startTime = Time.time; }
@@ -1012,15 +1078,16 @@ namespace NeXTMake.UI
         void Update()
         {
             float t = (Time.time - startTime) * orbitSpeed;
-            // Slightly elliptical orbit so the light sweeps across different parts of the image
+            // Elliptical orbit path so light sweeps across different parts of the image
             float x = Mathf.Sin(t) * orbitRadius;
-            float z = Mathf.Cos(t * 0.7f) * orbitRadius * 0.8f; // Slower Z for non-circular path
+            float z = Mathf.Cos(t * 0.73f) * orbitRadius * 0.85f;
             transform.localPosition = new Vector3(x, orbitHeight, z);
-            // Always aim at the content center
+            // Aim at the surface point DIRECTLY BELOW the light.
+            // This makes the bright spot move with the light across the image.
             if (transform.parent != null)
             {
-                Vector3 targetWorld = transform.parent.TransformPoint(contentCenterLocal);
-                transform.LookAt(targetWorld);
+                Vector3 groundBelow = transform.parent.TransformPoint(new Vector3(x, surfaceY, z));
+                transform.LookAt(groundBelow);
             }
         }
     }

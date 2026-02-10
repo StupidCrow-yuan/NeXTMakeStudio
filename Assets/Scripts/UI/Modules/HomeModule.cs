@@ -685,39 +685,39 @@ namespace NeXTMake.UI.Modules
             // Re-create Grid and Light if they were destroyed
             Create3DGrid(viewer.modelContainer);
             
-            // Lighting for Preview: dim directional base + moving spotlight for texture detail
-            // Directional (key): low so image is visible but muted
+            // Lighting for Preview: directional base + tight moving spotlight (~1/20 of image)
             GameObject keyLightObj = new GameObject("PreviewKeyLight");
             keyLightObj.transform.SetParent(viewer.modelContainer.transform);
             keyLightObj.transform.rotation = Quaternion.Euler(50, 30, 0);
             Light keyLight = keyLightObj.AddComponent<Light>();
             keyLight.type = LightType.Directional;
             keyLight.color = Color.white;
-            keyLight.intensity = 0.5f;
+            keyLight.intensity = 0.6f;
 
-            // Moving spotlight: sweeps across design, highlighting texture
+            // Moving spotlight: tight cone aiming straight down, spot moves with orbit
             GameObject lightObj = new GameObject("PreviewLight");
             lightObj.transform.SetParent(viewer.modelContainer.transform);
-            lightObj.transform.localPosition = new Vector3(2, 6, 4);
-            lightObj.transform.LookAt(viewer.modelContainer.transform.TransformPoint(new Vector3(0, 0.06f, 0)));
+            lightObj.transform.localPosition = new Vector3(0, 14, 0);
+            lightObj.transform.rotation = Quaternion.LookRotation(Vector3.down, Vector3.forward);
             Light l = lightObj.AddComponent<Light>();
             l.type = LightType.Spot;
-            l.spotAngle = 42f;   // Covers ~1/3 of design area at a time
-            l.range = 20f;
-            l.intensity = 2.2f;  // Brings lit region to near-full brightness
+            l.spotAngle = 5f;
+            l.innerSpotAngle = 3f;
+            l.range = 30f;
+            l.intensity = 1.8f;
             l.color = new Color(1f, 0.99f, 0.97f);
             l.shadows = LightShadows.None;
             var mle = lightObj.AddComponent<NeXTMake.UI.MovingLightEffect>();
-            mle.contentCenterLocal = new Vector3(0f, 0.06f, 0f);
-            mle.orbitRadius = 4f;
-            mle.orbitHeight = 6f;
-            mle.orbitSpeed = 0.5f;
+            mle.surfaceY = 0.06f;
+            mle.orbitRadius = 2.0f;
+            mle.orbitHeight = 14f;
+            mle.orbitSpeed = 0.35f;
 
-            // Low ambient for Preview so spotlight sweep is visible
+            // Moderate ambient for Preview
             RenderSettings.ambientMode = UnityEngine.Rendering.AmbientMode.Trilight;
-            RenderSettings.ambientSkyColor = new Color(0.3f, 0.3f, 0.3f, 1f);
-            RenderSettings.ambientEquatorColor = new Color(0.25f, 0.25f, 0.25f, 1f);
-            RenderSettings.ambientGroundColor = new Color(0.2f, 0.2f, 0.2f, 1f);
+            RenderSettings.ambientSkyColor = new Color(0.35f, 0.35f, 0.35f, 1f);
+            RenderSettings.ambientEquatorColor = new Color(0.3f, 0.3f, 0.3f, 1f);
+            RenderSettings.ambientGroundColor = new Color(0.25f, 0.25f, 0.25f, 1f);
 
             // 1. Root container for the design
             GameObject designStage = new GameObject("DesignStage");
@@ -815,6 +815,18 @@ namespace NeXTMake.UI.Modules
             }
             
             viewer.SetModel(designStage);
+
+            // Disable Model3DViewer's own SceneLight so our custom lights control the scene
+            if (viewer.sceneLight != null)
+            {
+                viewer.sceneLight.enabled = false;
+            }
+
+            // Low ambient so spotlight creates visible contrast
+            RenderSettings.ambientMode = UnityEngine.Rendering.AmbientMode.Trilight;
+            RenderSettings.ambientSkyColor = new Color(0.3f, 0.3f, 0.3f, 1f);
+            RenderSettings.ambientEquatorColor = new Color(0.25f, 0.25f, 0.25f, 1f);
+            RenderSettings.ambientGroundColor = new Color(0.2f, 0.2f, 0.2f, 1f);
         }
 
         private void SetLayerRecursive(GameObject obj, int layer)
