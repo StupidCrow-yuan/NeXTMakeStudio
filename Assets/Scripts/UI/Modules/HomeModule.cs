@@ -689,17 +689,17 @@ namespace NeXTMake.UI.Modules
             // Re-create Grid and Light if they were destroyed
             Create3DGrid(viewer.modelContainer);
             
-            // 聚光灯打在设计区域，更聚焦、扫过区域有明显光照
+            // 聚光灯打在设计区域，适度聚焦，不会过曝
             GameObject lightObj = new GameObject("PreviewLight");
             lightObj.transform.SetParent(viewer.modelContainer.transform);
-            lightObj.transform.localPosition = new Vector3(0, 6, 5);
+            lightObj.transform.localPosition = new Vector3(0, 8, 6);
             lightObj.transform.LookAt(viewer.modelContainer.transform.TransformPoint(new Vector3(0, 0.06f, 0)));
             Light l = lightObj.AddComponent<Light>();
             l.type = LightType.Spot;
-            l.spotAngle = 32f;  // 更聚焦
-            l.range = 14f;
-            l.intensity = 6f;   // 强光，扫到区域明显
-            l.color = new Color(1f, 0.98f, 0.96f);
+            l.spotAngle = 50f;   // 覆盖设计区域但不过分集中
+            l.range = 18f;
+            l.intensity = 2.0f;  // 温和，不会使中心过曝
+            l.color = new Color(1f, 0.99f, 0.96f);
             l.shadows = LightShadows.Soft;
 
             // 1. Root container for the design

@@ -114,7 +114,7 @@ namespace NeXTMake.UI
                 modelContainer = container;
             }
 
-            // 创建场景灯光：定向光作为基底，强度适中以便聚光效果突出
+            // 创建场景灯光：定向光作为主光源，确保画面清晰可见
             if (sceneLight == null)
             {
                 GameObject lightObj = new GameObject("SceneLight");
@@ -122,15 +122,15 @@ namespace NeXTMake.UI
                 sceneLight = lightObj.AddComponent<Light>();
                 sceneLight.type = LightType.Directional;
                 sceneLight.color = Color.white;
-                sceneLight.intensity = 0.9f; // 适中，让聚光灯扫过区域更明显
+                sceneLight.intensity = 1.2f; // 主光，保证图像色彩正常还原
                 lightObj.transform.rotation = Quaternion.Euler(50f, 40f, 0f);
             }
             
-            // 环境光适度降低，让聚光灯在图像范围内的扫光效果更明显
+            // 环境光：保持适中，让画面不会太暗，同时聚光扫过仍有可见明暗变化
             RenderSettings.ambientMode = UnityEngine.Rendering.AmbientMode.Trilight;
-            RenderSettings.ambientSkyColor = new Color(0.35f, 0.35f, 0.35f, 1f);
-            RenderSettings.ambientEquatorColor = new Color(0.28f, 0.28f, 0.28f, 1f);
-            RenderSettings.ambientGroundColor = new Color(0.22f, 0.22f, 0.22f, 1f);
+            RenderSettings.ambientSkyColor = new Color(0.5f, 0.5f, 0.5f, 1f);
+            RenderSettings.ambientEquatorColor = new Color(0.4f, 0.4f, 0.4f, 1f);
+            RenderSettings.ambientGroundColor = new Color(0.35f, 0.35f, 0.35f, 1f);
 
             // 设置目标图像
             if (targetImage != null)
