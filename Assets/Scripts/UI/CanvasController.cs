@@ -816,21 +816,33 @@ namespace NeXTMake.UI
                 }
             }
 
-            // 4. Add Moving Light Effect - USER REQ: Brighter, smaller range, focused on image
+            // 4. Add Moving Light Effect - focused on image bounds, obvious scan effect
             GameObject lightObj = new GameObject("MovingLight");
             lightObj.transform.SetParent(miniDesignStage.transform);
             Light l = lightObj.AddComponent<Light>();
             l.type = LightType.Spot;
-            l.range = 10f;
-            l.spotAngle = 45f;
-            l.intensity = 4.0f;
-            l.color = new Color(1, 0.98f, 0.95f);
+            l.range = 12f;
+            l.spotAngle = 28f;  // Narrow cone so light is focused on content area
+            l.intensity = 8f;   // Strong so lit region is clearly visible
+            l.color = new Color(1f, 0.98f, 0.95f);
             l.shadows = LightShadows.Soft;
-            lightObj.transform.localPosition = new Vector3(0, 5, 4);
-            lightObj.transform.LookAt(new Vector3(0, 0, 0));
-            
-            // Script for moving the light
-            lightObj.AddComponent<MovingLightEffect>();
+            // Content (mesh) is at local (0, 0.06, 0) in container under miniDesignStage
+            Vector3 contentCenterLocal = new Vector3(0f, 0.06f, 0f);
+            lightObj.transform.localPosition = new Vector3(0, 4, 3);
+            lightObj.transform.LookAt(miniDesignStage.transform.TransformPoint(contentCenterLocal));
+            lightObj.AddComponent<MovingLightEffect>().contentCenterLocal = contentCenterLocal;
+
+            // Fill light at content center so image area is always lit within bounds
+            GameObject fillObj = new GameObject("FillLight");
+            fillObj.transform.SetParent(miniDesignStage.transform);
+            fillObj.transform.localPosition = contentCenterLocal + new Vector3(0, 2f, 1f);
+            fillObj.transform.LookAt(miniDesignStage.transform.TransformPoint(contentCenterLocal));
+            Light fillLight = fillObj.AddComponent<Light>();
+            fillLight.type = LightType.Spot;
+            fillLight.range = 4f;
+            fillLight.spotAngle = 50f;
+            fillLight.intensity = 2f;
+            fillLight.color = new Color(1f, 1f, 1f);
 
             miniModelViewer.modelContainer = miniDesignStage;
             miniModelViewer.SetModel(miniDesignStage);
@@ -859,6 +871,17 @@ namespace NeXTMake.UI
             }
         }
 
+        void Start()
+        {
+            // Subscribe to window resize so mini preview and 3D viewer adapt to new size
+            var handler = GetComponentInParent<Canvas>()?.GetComponent<WindowResizeHandler>();
+            if (handler == null) handler = FindObjectOfType<WindowResizeHandler>();
+            if (handler != null)
+            {
+                handler.OnWindowResized += RefreshMiniPreviewOnResize;
+            }
+        }
+
         void OnEnable()
         {
             // USER REQ: Re-initialize mini preview when returning to editor
@@ -869,6 +892,29 @@ namespace NeXTMake.UI
                 {
                     OnCraftModeChanged(data.craftMode);
                 }
+            }
+        }
+
+        void OnDestroy()
+        {
+            var handler = GetComponentInParent<Canvas>()?.GetComponent<WindowResizeHandler>();
+            if (handler == null) handler = FindObjectOfType<WindowResizeHandler>();
+            if (handler != null)
+            {
+                handler.OnWindowResized -= RefreshMiniPreviewOnResize;
+            }
+        }
+
+        private void RefreshMiniPreviewOnResize()
+        {
+            if (miniPreviewPanel == null || !miniPreviewPanel.activeSelf) return;
+            if (miniModelViewer != null)
+            {
+                miniModelViewer.InitializeRenderer();
+            }
+            if (miniPreviewPanel != null)
+            {
+                LayoutRebuilder.ForceRebuildLayoutImmediate(miniPreviewPanel.GetComponent<RectTransform>());
             }
         }
 
@@ -931,18 +977,25 @@ namespace NeXTMake.UI
         }
     }
 
-    // Helper component for moving light
+    // Helper component for moving light - keeps light focused on content, scan effect
     public class MovingLightEffect : MonoBehaviour
     {
+        public Vector3 contentCenterLocal = new Vector3(0f, 0.06f, 0f);
         private float startTime;
         void Start() { startTime = Time.time; }
         void Update()
         {
-            float t = (Time.time - startTime) * 1.5f;
-            // Figure-8 pattern
-            float x = Mathf.Sin(t) * 4f;
-            float z = Mathf.Sin(t * 2f) * 2f;
-            transform.localPosition = new Vector3(x, 2f, z);
+            float t = (Time.time - startTime) * 1.2f;
+            // Orbit around content: small radius so light stays within image bounds
+            float x = Mathf.Sin(t) * 2.5f;
+            float z = Mathf.Cos(t) * 2.5f;
+            transform.localPosition = new Vector3(x, 3.5f, z);
+            // Always look at content center so the spot sweeps across the image
+            if (transform.parent != null)
+            {
+                Vector3 targetWorld = transform.parent.TransformPoint(contentCenterLocal);
+                transform.LookAt(targetWorld);
+            }
         }
     }
 }

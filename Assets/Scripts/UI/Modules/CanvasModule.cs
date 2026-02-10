@@ -583,6 +583,8 @@ namespace NeXTMake.UI.Modules
             controller.miniPreviewPanel = miniPrev;
             controller.miniPreviewImage = miniRi;
             controller.miniModelViewer = miniViewer;
+            // Ensure Depth Download button is on top so it stays visible and clickable in all depth modes
+            depthDl.transform.SetAsLastSibling();
             miniPrev.SetActive(false);
 
             // Ink Mode
