@@ -24,23 +24,14 @@ namespace NeXTMake.UI
         public Model3DViewer model3DViewer; // 3D模型查看器
         public Model3DController model3DController; // 3D模型控制器
         
-        [Header("面板组件")]
-        public LeftPanel leftPanel;          // 左侧工具面板
-        public RightPanel rightPanel;        // 右侧属性面板
-        public StudioUIManager studioUIManager; // Studio UI管理器
+        [Header("面板组件 (legacy - unused in NeXTMake Studio)")]
+        public MonoBehaviour legacyLeftPanel;
+        public MonoBehaviour legacyRightPanel;
 
         private PrintMode currentMode = PrintMode.UVPrint;
 
         void Start()
         {
-            // 自动查找组件引用
-            if (leftPanel == null)
-                leftPanel = FindObjectOfType<LeftPanel>();
-            if (rightPanel == null)
-                rightPanel = FindObjectOfType<RightPanel>();
-            if (studioUIManager == null)
-                studioUIManager = FindObjectOfType<StudioUIManager>();
-            
             // 自动查找模式按钮
             if (uvPrintModeButton == null)
                 uvPrintModeButton = FindObjectOfType<Button>(true);
@@ -151,12 +142,7 @@ namespace NeXTMake.UI
                 Debug.LogWarning("[PrintModeManager] model3DViewer未设置！");
             }
             
-            // 尝试加载3D模型
-            if (studioUIManager != null)
-            {
-                Debug.Log("[PrintModeManager] 尝试加载3D模型...");
-                studioUIManager.StartCoroutine(studioUIManager.TryLoadDefault3DModelCoroutine());
-            }
+            // TODO: Load 3D model via ModelLoader directly (old StudioUIManager reference removed)
         }
         
         /// <summary>
@@ -164,14 +150,7 @@ namespace NeXTMake.UI
         /// </summary>
         void UpdateLeftPanelTools(PrintMode mode)
         {
-            if (leftPanel == null) return;
-            
-            // UV打印模式：显示2D编辑工具（选择、画笔、橡皮擦、形状、文本）
-            // 3D打印模式：显示3D操作工具（旋转、缩放、平移、切片等）
-            // 注意：当前LeftPanel已经包含了基础工具，这里可以根据需要添加3D专用工具
-            
-            // 可以在这里动态显示/隐藏不同的工具组
-            // 例如：在3D模式下显示切片控制等
+            // Left panel tools are now managed by CanvasLeftPanelBuilder (UV) and Print3DModule (3D)
         }
         
         /// <summary>
@@ -179,26 +158,7 @@ namespace NeXTMake.UI
         /// </summary>
         void UpdateRightPanelProperties(PrintMode mode)
         {
-            if (rightPanel == null) return;
-            
-            // UV打印模式：显示图片属性（不透明度、画笔大小、颜色等）
-            // 3D打印模式：显示3D模型属性（位置、旋转、缩放、切片高度等）
-            
-            if (mode == PrintMode.UVPrint)
-            {
-                // 显示2D编辑相关属性
-                if (rightPanel.brushGroup != null)
-                    rightPanel.brushGroup.SetActive(true);
-                if (rightPanel.appearanceGroup != null)
-                    rightPanel.appearanceGroup.SetActive(true);
-            }
-            else if (mode == PrintMode.Print3D)
-            {
-                // 显示3D模型相关属性
-                if (rightPanel.transformGroup != null)
-                    rightPanel.transformGroup.SetActive(true);
-                // 可以添加3D专用属性组，如切片控制等
-            }
+            // Right panel properties are now managed by CanvasController (UV) and Print3DModule (3D)
         }
 
         void UpdateButtonStates()

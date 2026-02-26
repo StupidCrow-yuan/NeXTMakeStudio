@@ -30,11 +30,8 @@ namespace NeXTMake.UI
         public PrintModeManager printModeManager;
 
         [Header("核心组件 (引用)")]
-        public ImageViewer imageViewer;
         public Model3DViewer model3DViewer;
         public Model3DController model3DController;
-        public LeftPanel leftPanel;
-        public RightPanel rightPanel;
 
         // 内部状态
         private PrintMode currentMode = PrintMode.UVPrint;
