@@ -1,6 +1,6 @@
-using UnityEngine;
+﻿using UnityEngine;
 
-namespace NeXTMake.UI.Core
+namespace PocoRender.UI.Core
 {
     // Project data structure for detail view
     public class ProjectData
@@ -11,4 +11,5 @@ namespace NeXTMake.UI.Core
         public Color? fallbackColor;
     }
 }
+
 

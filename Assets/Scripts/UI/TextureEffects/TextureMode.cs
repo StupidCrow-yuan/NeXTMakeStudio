@@ -1,6 +1,6 @@
-using System;
+﻿using System;
 
-namespace NeXTMake.UI.TextureEffects
+namespace PocoRender.UI.TextureEffects
 {
     public enum TextureMode
     {
@@ -47,5 +47,6 @@ namespace NeXTMake.UI.TextureEffects
         }
     }
 }
+
 
 

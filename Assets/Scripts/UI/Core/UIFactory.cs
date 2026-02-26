@@ -1,7 +1,7 @@
-using UnityEngine;
+﻿using UnityEngine;
 using UnityEngine.UI;
 
-namespace NeXTMake.UI.Core
+namespace PocoRender.UI.Core
 {
     public static class UIFactory
     {
@@ -194,4 +194,5 @@ namespace NeXTMake.UI.Core
         }
     }
 }
+
 

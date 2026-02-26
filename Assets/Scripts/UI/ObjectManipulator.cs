@@ -1,7 +1,7 @@
-using UnityEngine;
+﻿using UnityEngine;
 using UnityEngine.EventSystems;
 
-namespace NeXTMake.UI
+namespace PocoRender.UI
 {
     public class ObjectManipulator : MonoBehaviour, IPointerDownHandler, IDragHandler, IPointerClickHandler, IBeginDragHandler, IEndDragHandler
     {
@@ -74,3 +74,4 @@ namespace NeXTMake.UI
         }
     }
 }
+

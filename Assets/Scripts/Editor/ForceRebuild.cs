@@ -1,12 +1,12 @@
-using UnityEngine;
+﻿using UnityEngine;
 using UnityEditor;
-using NeXTMake.UI;
+using PocoRender.UI;
 
-namespace NeXTMake.Editor
+namespace PocoRender.Editor
 {
     public class ForceRebuild
     {
-        [MenuItem("Tools/NeXTMake Studio/DEBUG FORCE REBUILD")]
+        [MenuItem("Tools/PocoRender Studio/DEBUG FORCE REBUILD")]
         public static void Rebuild()
         {
             Debug.ClearDeveloperConsole();
@@ -16,21 +16,23 @@ namespace NeXTMake.Editor
             var objs = GameObject.FindObjectsOfType<GameObject>();
             foreach(var o in objs)
             {
-                if (o.name.Contains("UIContainer") || o.name.Contains("Canvas") || o.name == "NeXTMakeStudioSetup")
+                if (o.name.Contains("UIContainer") || o.name.Contains("Canvas") || o.name == "PocoRenderStudioSetup")
                 {
                     GameObject.DestroyImmediate(o);
                 }
             }
 
             // Create new setup
-            GameObject setup = new GameObject("NeXTMakeStudioSetup");
-            var script = setup.AddComponent<NeXTMakeStudioUIAutoSetup>();
+            GameObject setup = new GameObject("PocoRenderStudioSetup");
+            var script = setup.AddComponent<PocoRenderStudioUIAutoSetup>();
             
             // Force run
-            script.SetupNeXTMakeStudioUI();
+            script.SetupPocoRenderStudioUI();
 
             Debug.Log("--- FORCE REBUILD DONE ---");
         }
     }
 }
+
+
 

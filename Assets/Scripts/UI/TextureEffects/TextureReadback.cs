@@ -1,6 +1,6 @@
-using UnityEngine;
+﻿using UnityEngine;
 
-namespace NeXTMake.UI.TextureEffects
+namespace PocoRender.UI.TextureEffects
 {
     public static class TextureReadback
     {
@@ -41,5 +41,6 @@ namespace NeXTMake.UI.TextureEffects
         }
     }
 }
+
 
 

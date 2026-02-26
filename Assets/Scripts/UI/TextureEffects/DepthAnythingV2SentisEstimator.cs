@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Reflection;
 using UnityEngine;
 
@@ -6,7 +6,7 @@ using UnityEngine;
 using Unity.Sentis;
 #endif
 
-namespace NeXTMake.UI.TextureEffects
+namespace PocoRender.UI.TextureEffects
 {
     /// <summary>
     /// DepthAnything v2 (Sentis) estimator.
@@ -273,5 +273,6 @@ namespace NeXTMake.UI.TextureEffects
         }
     }
 }
+
 
 

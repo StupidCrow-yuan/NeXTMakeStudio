@@ -1,8 +1,8 @@
-using UnityEngine;
+﻿using UnityEngine;
 using UnityEngine.UI;
 using UnityEngine.EventSystems;
 
-namespace NeXTMake.UI
+namespace PocoRender.UI
 {
     /// <summary>
     /// 3D模型控制器，处理模型的旋转、缩放、平移、切片等操作
@@ -331,4 +331,5 @@ namespace NeXTMake.UI
         }
     }
 }
+
 

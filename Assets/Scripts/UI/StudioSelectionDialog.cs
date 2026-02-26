@@ -1,9 +1,9 @@
-using UnityEngine;
+﻿using UnityEngine;
 using UnityEngine.UI;
 using UnityEngine.Events;
-using NeXTMake.Core;
+using PocoRender.Core;
 
-namespace NeXTMake.UI
+namespace PocoRender.UI
 {
     public class StudioSelectionDialog : MonoBehaviour
     {
@@ -146,4 +146,5 @@ namespace NeXTMake.UI
         }
     }
 }
+
 

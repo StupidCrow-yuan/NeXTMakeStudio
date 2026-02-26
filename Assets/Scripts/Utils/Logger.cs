@@ -1,8 +1,8 @@
-using UnityEngine;
+﻿using UnityEngine;
 using System.IO;
 using System;
 
-namespace NeXTMake.Utils
+namespace PocoRender.Utils
 {
     public class Logger : MonoBehaviour
     {

@@ -1,12 +1,12 @@
-using UnityEngine;
+﻿using UnityEngine;
 
 #if HAS_SENTIS
 using Unity.Sentis;
 #endif
 
-namespace NeXTMake.UI.TextureEffects
+namespace PocoRender.UI.TextureEffects
 {
-    [CreateAssetMenu(fileName = "DepthAnythingV2Settings", menuName = "NeXTMake/DepthAnything v2 Settings")]
+    [CreateAssetMenu(fileName = "DepthAnythingV2Settings", menuName = "PocoRender/DepthAnything v2 Settings")]
     public class DepthAnythingV2Settings : ScriptableObject
     {
         [Header("Model")]
@@ -37,5 +37,7 @@ namespace NeXTMake.UI.TextureEffects
         public bool verboseLogging = true;
     }
 }
+
+
 
 

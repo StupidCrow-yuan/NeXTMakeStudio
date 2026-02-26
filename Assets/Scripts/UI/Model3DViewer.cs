@@ -1,8 +1,8 @@
-using UnityEngine;
+﻿using UnityEngine;
 using UnityEngine.UI;
-using NeXTMake.Core;
+using PocoRender.Core;
 
-namespace NeXTMake.UI
+namespace PocoRender.UI
 {
     /// <summary>
     /// 3D模型查看器，使用RenderTexture在UI上显示3D模型
@@ -535,4 +535,5 @@ namespace NeXTMake.UI
         }
     }
 }
+
 

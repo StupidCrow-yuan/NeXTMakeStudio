@@ -1,9 +1,9 @@
-using System;
+﻿using System;
 using System.Linq;
 using UnityEditor;
 using UnityEngine;
 
-namespace NeXTMake.UI.EditorTools
+namespace PocoRender.UI.EditorTools
 {
     /// <summary>
     /// Keeps global scripting define HAS_SENTIS in sync with whether com.unity.sentis is installed.
@@ -77,4 +77,5 @@ namespace NeXTMake.UI.EditorTools
         }
     }
 }
+
 

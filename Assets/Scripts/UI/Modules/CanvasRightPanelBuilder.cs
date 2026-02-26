@@ -1,9 +1,9 @@
-using UnityEngine;
+﻿using UnityEngine;
 using UnityEngine.UI;
 using System.Collections.Generic;
-using NeXTMake.UI.Core;
+using PocoRender.UI.Core;
 
-namespace NeXTMake.UI.Modules
+namespace PocoRender.UI.Modules
 {
     /// <summary>
     /// Builds the right panel of the canvas editor: layer info, global info, bottom buttons.
@@ -208,7 +208,7 @@ namespace NeXTMake.UI.Modules
             thumb.AddComponent<Image>().color = Color.black;
             GameObject info = UIFactory.CreateObject("Info", deviceBox);
             VerticalLayoutGroup ivlg = info.AddComponent<VerticalLayoutGroup>(); ivlg.childAlignment = TextAnchor.MiddleLeft; ivlg.spacing = 2;
-            UIFactory.CreateText("NextMake 8260", info, 14, Color.black, Vector2.zero, new Vector2(150, 20), TextAnchor.MiddleLeft, FontStyle.Bold);
+            UIFactory.CreateText("PocoRender 8260", info, 14, Color.black, Vector2.zero, new Vector2(150, 20), TextAnchor.MiddleLeft, FontStyle.Bold);
             UIFactory.CreateText("\u25CF Disconnected", info, 12, Color.gray, Vector2.zero, new Vector2(150, 18), TextAnchor.MiddleLeft);
 
             // Print Bed
@@ -390,3 +390,5 @@ namespace NeXTMake.UI.Modules
         }
     }
 }
+
+

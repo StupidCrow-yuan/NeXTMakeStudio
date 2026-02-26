@@ -1,7 +1,7 @@
-using UnityEngine;
+﻿using UnityEngine;
 using UnityEngine.EventSystems;
 
-namespace NeXTMake.UI
+namespace PocoRender.UI
 {
     public class CanvasDragger : MonoBehaviour, IDragHandler
     {
@@ -26,5 +26,6 @@ namespace NeXTMake.UI
         }
     }
 }
+
 
 

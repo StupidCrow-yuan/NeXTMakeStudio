@@ -1,11 +1,11 @@
-using UnityEngine;
+﻿using UnityEngine;
 using UnityEngine.UI;
-using NeXTMake.UI.Core;
+using PocoRender.UI.Core;
 using System.Collections.Generic;
-using NeXTMake.UI; // For NeXTMakeStudioUIManager, UVPrintStudioLayout
-using NeXTMake.UI.TextureEffects;
+using PocoRender.UI; // For PocoRenderStudioUIManager, UVPrintStudioLayout
+using PocoRender.UI.TextureEffects;
 
-namespace NeXTMake.UI.Modules
+namespace PocoRender.UI.Modules
 {
     public class HomeModule
     {
@@ -19,7 +19,7 @@ namespace NeXTMake.UI.Modules
         private GameObject previewLayersPanel; // Left panel in preview
         private GameObject previewLayersList; // Content for preview layers
 
-        public void CreateUVPrintLayout(GameObject parent, NeXTMakeStudioUIManager manager, System.Action<Color?> addCanvasCallback)
+        public void CreateUVPrintLayout(GameObject parent, PocoRenderStudioUIManager manager, System.Action<Color?> addCanvasCallback)
         {
             GameObject layoutObj = UIFactory.CreateObject("UVPrintStudioLayout", parent);
             UIFactory.Stretch(layoutObj.GetComponent<RectTransform>());
@@ -45,7 +45,7 @@ namespace NeXTMake.UI.Modules
 
             string[] menuItems = { "View", "Settings", "Help", "Account" };
             foreach (var m in menuItems) UIFactory.CreateTextButton(m, menus, 12, UIFactory.COLOR_TEXT_LIGHT);
-            UIFactory.CreateText("NeXTMake Studio-1.0.0.0", topRow, 12, Color.gray, Vector2.zero, new Vector2(300, 30), TextAnchor.MiddleCenter);
+            UIFactory.CreateText("PocoRender Studio-1.0.0.0", topRow, 12, Color.gray, Vector2.zero, new Vector2(300, 30), TextAnchor.MiddleCenter);
 
             GameObject winControls = UIFactory.CreateObject("WinControls", topRow);
             HorizontalLayoutGroup wlg = winControls.AddComponent<HorizontalLayoutGroup>();
@@ -707,7 +707,7 @@ namespace NeXTMake.UI.Modules
             l.intensity = 1.8f;
             l.color = new Color(1f, 0.99f, 0.97f);
             l.shadows = LightShadows.None;
-            var mle = lightObj.AddComponent<NeXTMake.UI.MovingLightEffect>();
+            var mle = lightObj.AddComponent<PocoRender.UI.MovingLightEffect>();
             mle.surfaceY = 0.06f;
             mle.orbitRadius = 2.0f;
             mle.orbitHeight = 14f;
@@ -839,4 +839,6 @@ namespace NeXTMake.UI.Modules
         }
     }
 }
+
+
 

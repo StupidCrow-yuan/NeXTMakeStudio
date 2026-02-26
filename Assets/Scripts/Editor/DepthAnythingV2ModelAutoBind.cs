@@ -1,11 +1,11 @@
-using UnityEditor;
+﻿using UnityEditor;
 using UnityEngine;
 
 #if HAS_SENTIS
 using Unity.Sentis;
 #endif
 
-namespace NeXTMake.UI.EditorTools
+namespace PocoRender.UI.EditorTools
 {
     /// <summary>
     /// Auto-binds DepthAnything v2 ONNX ModelAsset into Resources/DepthAnythingV2Settings.asset
@@ -31,7 +31,7 @@ namespace NeXTMake.UI.EditorTools
             // Sentis not installed or not resolved; skip binding.
             return;
 #else
-            var settings = AssetDatabase.LoadAssetAtPath<NeXTMake.UI.TextureEffects.DepthAnythingV2Settings>(SettingsPath);
+            var settings = AssetDatabase.LoadAssetAtPath<PocoRender.UI.TextureEffects.DepthAnythingV2Settings>(SettingsPath);
             if (settings == null)
             {
                 Debug.LogWarning("[DepthAnythingV2] Settings asset not found: " + SettingsPath);
@@ -97,5 +97,6 @@ namespace NeXTMake.UI.EditorTools
         }
     }
 }
+
 
 

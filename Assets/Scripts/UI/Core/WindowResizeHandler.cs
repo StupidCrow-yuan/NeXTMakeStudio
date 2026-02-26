@@ -1,6 +1,6 @@
-using UnityEngine;
+﻿using UnityEngine;
 
-namespace NeXTMake.UI.Core
+namespace PocoRender.UI.Core
 {
     /// <summary>
     /// 窗口大小变化处理器，用于监听窗口大小变化事件并触发布局更新

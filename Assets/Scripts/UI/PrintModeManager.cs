@@ -1,9 +1,9 @@
-using UnityEngine;
+﻿using UnityEngine;
 using UnityEngine.UI;
-using NeXTMake.Core;
-using NeXTMake.UI;
+using PocoRender.Core;
+using PocoRender.UI;
 
-namespace NeXTMake.UI
+namespace PocoRender.UI
 {
     /// <summary>
     /// 打印模式管理器，处理UV打印和3D打印模式之间的切换
@@ -24,7 +24,7 @@ namespace NeXTMake.UI
         public Model3DViewer model3DViewer; // 3D模型查看器
         public Model3DController model3DController; // 3D模型控制器
         
-        [Header("面板组件 (legacy - unused in NeXTMake Studio)")]
+        [Header("面板组件 (legacy - unused in PocoRender Studio)")]
         public MonoBehaviour legacyLeftPanel;
         public MonoBehaviour legacyRightPanel;
 
@@ -204,4 +204,6 @@ namespace NeXTMake.UI
         }
     }
 }
+
+
 

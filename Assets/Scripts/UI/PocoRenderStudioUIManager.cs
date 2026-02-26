@@ -1,21 +1,21 @@
-using UnityEngine;
+﻿using UnityEngine;
 using UnityEngine.UI;
 using System.Collections.Generic;
 using System.IO;
 using System.Threading.Tasks;
-using NeXTMake.Core;
-using NeXTMake.UI.Core;
+using PocoRender.Core;
+using PocoRender.UI.Core;
 
 #if UNITY_EDITOR || UNITY_STANDALONE
 using TMPro;
 #endif
 
-namespace NeXTMake.UI
+namespace PocoRender.UI
 {
     /// <summary>
-    /// NeXTMake Studio 风格的 UI 管理器
+    /// PocoRender Studio 风格的 UI 管理器
     /// </summary>
-    public class NeXTMakeStudioUIManager : MonoBehaviour
+    public class PocoRenderStudioUIManager : MonoBehaviour
     {
         [Header("主布局容器")]
         public RectTransform mainContainer;
@@ -64,7 +64,7 @@ namespace NeXTMake.UI
             }
 
             resizeHandler.OnWindowResized += () => {
-                Debug.Log("[NeXTMakeStudioUIManager] 窗口大小变化，更新布局");
+                Debug.Log("[PocoRenderStudioUIManager] 窗口大小变化，更新布局");
                 UpdateLayout();
             };
         }
@@ -172,4 +172,6 @@ namespace NeXTMake.UI
         public void SetCurrentMode(PrintMode mode) { OnStudioSelected(mode); }
     }
 }
+
+
 

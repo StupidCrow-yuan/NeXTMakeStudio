@@ -1,17 +1,17 @@
-using UnityEngine;
+ï»¿using UnityEngine;
 using System.Collections;
 using System.IO;
 using System.Threading.Tasks;
 using System;
 
-namespace NeXTMake.Core
+namespace PocoRender.Core
 {
     public class ImageLoader : MonoBehaviour
     {
         public delegate void ImageLoadCallback(Texture2D texture, string error);
 
         /// <summary>
-        /// Òì²½¼ÓÔØÍ¼Æ¬£¨Ê¹ÓÃÐ­³Ì£¬²»×èÈûUI£©
+        /// ï¿½ì²½ï¿½ï¿½ï¿½ï¿½Í¼Æ¬ï¿½ï¿½Ê¹ï¿½ï¿½Ð­ï¿½Ì£ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½UIï¿½ï¿½
         /// </summary>
         public void LoadImageAsync(string imagePath, ImageLoadCallback callback)
         {
@@ -19,7 +19,7 @@ namespace NeXTMake.Core
         }
 
         /// <summary>
-        /// Òì²½¼ÓÔØÍ¼Æ¬£¨Ê¹ÓÃTask£¬.NET 4.x+£©
+        /// ï¿½ì²½ï¿½ï¿½ï¿½ï¿½Í¼Æ¬ï¿½ï¿½Ê¹ï¿½ï¿½Taskï¿½ï¿½.NET 4.x+ï¿½ï¿½
         /// </summary>
         public async Task<Texture2D> LoadImageTaskAsync(string imagePath)
         {
@@ -31,10 +31,10 @@ namespace NeXTMake.Core
                     return null;
                 }
 
-                // ÔÚºóÌ¨Ïß³Ì¶ÁÈ¡ÎÄ¼þ
+                // ï¿½Úºï¿½Ì¨ï¿½ß³Ì¶ï¿½È¡ï¿½Ä¼ï¿½
                 byte[] fileData = await Task.Run(() => File.ReadAllBytes(imagePath));
 
-                // »Øµ½Ö÷Ïß³Ì´´½¨ÎÆÀí
+                // ï¿½Øµï¿½ï¿½ï¿½ï¿½ß³Ì´ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
                 return await CreateTextureFromBytes(fileData);
             }
             catch (Exception e)
@@ -46,7 +46,7 @@ namespace NeXTMake.Core
 
         private async Task<Texture2D> CreateTextureFromBytes(byte[] fileData)
         {
-            // È·±£ÔÚÖ÷Ïß³ÌÖ´ÐÐ
+            // È·ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ß³ï¿½Ö´ï¿½ï¿½
             await Task.Yield();
 
             Texture2D texture = new Texture2D(2, 2);
@@ -63,17 +63,17 @@ namespace NeXTMake.Core
 
         IEnumerator LoadImageCoroutine(string imagePath, ImageLoadCallback callback)
         {
-            // ÑéÖ¤ÎÄ¼þ
+            // ï¿½ï¿½Ö¤ï¿½Ä¼ï¿½
             if (!File.Exists(imagePath))
             {
                 callback?.Invoke(null, $"File not found: {imagePath}");
                 yield break;
             }
 
-            // ÏÔÊ¾¼ÓÔØ½ø¶È
+            // ï¿½ï¿½Ê¾ï¿½ï¿½ï¿½Ø½ï¿½ï¿½ï¿½
             yield return null;
 
-            // ¶ÁÈ¡ÎÄ¼þ£¨·Ö¿é¶ÁÈ¡£¬±ÜÃâ¿¨¶Ù£©
+            // ï¿½ï¿½È¡ï¿½Ä¼ï¿½ï¿½ï¿½ï¿½Ö¿ï¿½ï¿½È¡ï¿½ï¿½ï¿½ï¿½ï¿½â¿¨ï¿½Ù£ï¿½
             byte[] fileData = null;
             Task readTask = Task.Run(() =>
             {
@@ -87,10 +87,10 @@ namespace NeXTMake.Core
                 }
             });
 
-            // µÈ´ý¶ÁÈ¡Íê³É£¬µ«²»×èÈûÖ÷Ïß³Ì
+            // ï¿½È´ï¿½ï¿½ï¿½È¡ï¿½ï¿½É£ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ß³ï¿½
             while (!readTask.IsCompleted)
             {
-                yield return null; // Ã¿Ö¡¼ì²éÒ»´Î
+                yield return null; // Ã¿Ö¡ï¿½ï¿½ï¿½Ò»ï¿½ï¿½
             }
 
             if (fileData == null)
@@ -99,8 +99,8 @@ namespace NeXTMake.Core
                 yield break;
             }
 
-            // ´´½¨ÎÆÀí£¨ÔÚÖ÷Ïß³Ì£©
-            yield return null; // ÈÃ³öÒ»Ö¡£¬±£³ÖUIÏìÓ¦
+            // ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ß³Ì£ï¿½
+            yield return null; // ï¿½Ã³ï¿½Ò»Ö¡ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½UIï¿½ï¿½Ó¦
 
             Texture2D texture = new Texture2D(2, 2);
             bool loaded = texture.LoadImage(fileData);
@@ -117,7 +117,7 @@ namespace NeXTMake.Core
         }
 
         /// <summary>
-        /// Í¬²½¼ÓÔØ£¨²»ÍÆ¼ö£¬»á×èÈûUI£©
+        /// Í¬ï¿½ï¿½ï¿½ï¿½ï¿½Ø£ï¿½ï¿½ï¿½ï¿½Æ¼ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½UIï¿½ï¿½
         /// </summary>
         public Texture2D LoadImageSync(string imagePath)
         {

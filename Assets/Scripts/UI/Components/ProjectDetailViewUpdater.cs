@@ -1,9 +1,9 @@
-using UnityEngine;
+﻿using UnityEngine;
 using UnityEngine.UI;
 using System.Collections;
-using NeXTMake.UI.Core; // For ProjectData
+using PocoRender.UI.Core; // For ProjectData
 
-namespace NeXTMake.UI
+namespace PocoRender.UI
 {
     // Component to update detail view with project data
     public class ProjectDetailViewUpdater : MonoBehaviour
@@ -160,4 +160,5 @@ namespace NeXTMake.UI
         }
     }
 }
+
 

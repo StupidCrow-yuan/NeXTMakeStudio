@@ -1,7 +1,7 @@
-using UnityEngine;
+﻿using UnityEngine;
 using UnityEngine.UI;
 
-namespace NeXTMake.UI
+namespace PocoRender.UI
 {
     public class Print3DStudioLayout : MonoBehaviour
     {
@@ -11,7 +11,7 @@ namespace NeXTMake.UI
         public RectTransform sidebar;
         public RectTransform contentArea;
         
-        // Added for compatibility with NeXTMakeStudioUIAutoSetup
+        // Added for compatibility with PocoRenderStudioUIAutoSetup
         public RectTransform modelViewer;
         public RectTransform controlsPanel;
         public RectTransform infoPanel;
@@ -49,3 +49,5 @@ namespace NeXTMake.UI
         }
     }
 }
+
+

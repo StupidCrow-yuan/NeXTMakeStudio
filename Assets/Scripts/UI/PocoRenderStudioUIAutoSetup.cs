@@ -1,13 +1,13 @@
-using UnityEngine;
+﻿using UnityEngine;
 using UnityEngine.UI;
-using NeXTMake.Core;
-using NeXTMake.UI.Core;
-using NeXTMake.UI.Modules;
+using PocoRender.Core;
+using PocoRender.UI.Core;
+using PocoRender.UI.Modules;
 using System.Collections.Generic;
 
-namespace NeXTMake.UI
+namespace PocoRender.UI
 {
-    public class NeXTMakeStudioUIAutoSetup : MonoBehaviour
+    public class PocoRenderStudioUIAutoSetup : MonoBehaviour
     {
         [Header("Auto Setup Settings")]
         public bool autoCreateOnStart = true;
@@ -16,12 +16,12 @@ namespace NeXTMake.UI
 
         void Start()
         {
-            if (autoCreateOnStart) SetupNeXTMakeStudioUI();
+            if (autoCreateOnStart) SetupPocoRenderStudioUI();
         }
 
-        public void SetupNeXTMakeStudioUI()
+        public void SetupPocoRenderStudioUI()
         {
-            Debug.Log($"[NeXTMakeStudio] Building UI... Version: 4.4_ModularUpdate");
+            Debug.Log($"[PocoRenderStudio] Building UI... Version: 4.4_ModularUpdate");
 
             // Initialize Factory Settings
             UIFactory.DefaultFont = defaultFont;
@@ -29,11 +29,11 @@ namespace NeXTMake.UI
             Canvas canvas = UIFactory.FindOrCreateCanvas();
             if (replaceOldUI) UIFactory.CleanupOldUI(canvas);
 
-            GameObject mainContainer = UIFactory.CreateObject("NeXTMakeStudioUIContainer", canvas.gameObject);
+            GameObject mainContainer = UIFactory.CreateObject("PocoRenderStudioUIContainer", canvas.gameObject);
             RectTransform mainRect = mainContainer.GetComponent<RectTransform>();
             mainRect.anchorMin = Vector2.zero; mainRect.anchorMax = Vector2.one; mainRect.sizeDelta = Vector2.zero;
 
-            NeXTMakeStudioUIManager uiManager = mainContainer.AddComponent<NeXTMakeStudioUIManager>();
+            PocoRenderStudioUIManager uiManager = mainContainer.AddComponent<PocoRenderStudioUIManager>();
             uiManager.mainContainer = mainRect;
             uiManager.rootCanvas = canvas;
             uiManager.printModeManager = mainContainer.AddComponent<PrintModeManager>();
@@ -63,11 +63,11 @@ namespace NeXTMake.UI
             Print3DModule.CreatePrint3DLayout(mainContainer, uiManager);
 
             uiManager.Initialize();
-            Debug.Log("[NeXTMakeStudio] UI setup completed.");
+            Debug.Log("[PocoRenderStudio] UI setup completed.");
         }
 
         // --- 1. Selection Dialog ---
-        void CreateSelectionDialog(GameObject parent, NeXTMakeStudioUIManager manager)
+        void CreateSelectionDialog(GameObject parent, PocoRenderStudioUIManager manager)
         {
             GameObject overlay = UIFactory.CreateObject("DialogOverlay", parent);
             Image overlayImg = overlay.AddComponent<Image>();
@@ -111,3 +111,5 @@ namespace NeXTMake.UI
         }
     }
 }
+
+

@@ -1,8 +1,8 @@
-using UnityEngine;
+﻿using UnityEngine;
 using UnityEngine.UI;
-using NeXTMake.UI.Core;
+using PocoRender.UI.Core;
 
-namespace NeXTMake.UI.Modules
+namespace PocoRender.UI.Modules
 {
     /// <summary>
     /// Orchestrator for building the Canvas Editor page.
@@ -68,3 +68,4 @@ namespace NeXTMake.UI.Modules
             => CanvasModalBuilder.CreateColorPicker(root);
     }
 }
+

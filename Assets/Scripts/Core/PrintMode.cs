@@ -1,4 +1,4 @@
-namespace NeXTMake.Core
+﻿namespace PocoRender.Core
 {
     /// <summary>
     /// 打印模式枚举
@@ -16,4 +16,5 @@ namespace NeXTMake.Core
         Print3D
     }
 }
+
 

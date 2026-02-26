@@ -1,10 +1,10 @@
-using UnityEngine;
+﻿using UnityEngine;
 using UnityEngine.UI;
-using NeXTMake.UI.Core;
+using PocoRender.UI.Core;
 using System.Collections.Generic;
-using NeXTMake.UI.TextureEffects;
+using PocoRender.UI.TextureEffects;
 
-namespace NeXTMake.UI
+namespace PocoRender.UI
 {
     public class CanvasController : MonoBehaviour
     {
@@ -612,8 +612,8 @@ namespace NeXTMake.UI
             }
 
             // Mini preview for all parallax modes (including Customize Texture). Flat has no depth.
-            bool hasMode = NeXTMake.UI.TextureEffects.TextureModeUtil.TryParseCraftMode(mode, out var texMode);
-            bool needsThumbnail = hasMode && NeXTMake.UI.TextureEffects.TextureModeUtil.IsParallaxMode(texMode);
+            bool hasMode = PocoRender.UI.TextureEffects.TextureModeUtil.TryParseCraftMode(mode, out var texMode);
+            bool needsThumbnail = hasMode && PocoRender.UI.TextureEffects.TextureModeUtil.IsParallaxMode(texMode);
             bool needsUpload = (mode == "Customize Texture");
 
             if (miniPreviewPanel != null)
@@ -643,13 +643,13 @@ namespace NeXTMake.UI
 
             var ld = currentSelection.GetComponent<LayerData>();
             string craftMode = ld != null ? ld.craftMode : null;
-            if (!NeXTMake.UI.TextureEffects.TextureModeUtil.TryParseCraftMode(craftMode, out var mode))
+            if (!PocoRender.UI.TextureEffects.TextureModeUtil.TryParseCraftMode(craftMode, out var mode))
             {
                 ShowInfoPopup("当前模式无深度图可导出。");
                 return;
             }
 
-            if (mode == NeXTMake.UI.TextureEffects.TextureMode.Flat)
+            if (mode == PocoRender.UI.TextureEffects.TextureMode.Flat)
             {
                 ShowInfoPopup("Flat 模式没有深度图。");
                 return;
@@ -665,19 +665,19 @@ namespace NeXTMake.UI
             Texture2D depthTex = null;
             bool shouldDestroy = false;
 
-            if (mode == NeXTMake.UI.TextureEffects.TextureMode.CustomizeTexture && ld != null && ld.customDepthMap != null)
+            if (mode == PocoRender.UI.TextureEffects.TextureMode.CustomizeTexture && ld != null && ld.customDepthMap != null)
             {
                 depthTex = ld.customDepthMap;
             }
             else
             {
-                var spriteTex = NeXTMake.UI.TextureEffects.SpriteTextureUtil.ExtractSpriteTexture(img.sprite, 0); // keep original size
+                var spriteTex = PocoRender.UI.TextureEffects.SpriteTextureUtil.ExtractSpriteTexture(img.sprite, 0); // keep original size
                 if (spriteTex == null)
                 {
                     ShowInfoPopup("无法读取图层图片纹理。");
                     return;
                 }
-                depthTex = NeXTMake.UI.TextureEffects.HeightMapGenerator.GenerateHeightMap(spriteTex, mode);
+                depthTex = PocoRender.UI.TextureEffects.HeightMapGenerator.GenerateHeightMap(spriteTex, mode);
                 shouldDestroy = true;
                 Destroy(spriteTex);
             }
@@ -1092,3 +1092,4 @@ namespace NeXTMake.UI
         }
     }
 }
+

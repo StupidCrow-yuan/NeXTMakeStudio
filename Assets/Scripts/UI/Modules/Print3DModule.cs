@@ -1,13 +1,13 @@
 using UnityEngine;
 using UnityEngine.UI;
-using NeXTMake.UI.Core;
-using NeXTMake.UI; // For NeXTMakeStudioUIManager, Print3DStudioLayout
+using PocoRender.UI.Core;
+using PocoRender.UI; // For PocoRenderStudioUIManager, Print3DStudioLayout
 
-namespace NeXTMake.UI.Modules
+namespace PocoRender.UI.Modules
 {
     public class Print3DModule
     {
-        public static void CreatePrint3DLayout(GameObject parent, NeXTMakeStudioUIManager manager)
+        public static void CreatePrint3DLayout(GameObject parent, PocoRenderStudioUIManager manager)
         {
             GameObject layoutObj = UIFactory.CreateObject("Print3DStudioLayout", parent);
             UIFactory.Stretch(layoutObj.GetComponent<RectTransform>());
@@ -37,7 +37,7 @@ namespace NeXTMake.UI.Modules
             string[] menuItems = { "File", "Edit", "View", "Settings", "Calibration", "Help", "Account" };
             foreach (var m in menuItems) UIFactory.CreateTextButton(m, menus, 12, UIFactory.COLOR_TEXT_LIGHT);
 
-            UIFactory.CreateText("NeXTMake Studio - 2.3.0.7 Based on PrusaSlicer", topRow, 12, Color.gray, Vector2.zero, new Vector2(400, 30), TextAnchor.MiddleCenter);
+            UIFactory.CreateText("PocoRender Studio - 1.0.0", topRow, 12, Color.gray, Vector2.zero, new Vector2(400, 30), TextAnchor.MiddleCenter);
 
             GameObject winControls = UIFactory.CreateObject("WinControls", topRow);
             HorizontalLayoutGroup wlg = winControls.AddComponent<HorizontalLayoutGroup>();
@@ -181,4 +181,6 @@ namespace NeXTMake.UI.Modules
         }
     }
 }
+
+
 

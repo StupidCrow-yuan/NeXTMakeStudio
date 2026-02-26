@@ -1,8 +1,8 @@
-using UnityEngine;
+﻿using UnityEngine;
 using UnityEngine.UI;
 using UnityEngine.EventSystems;
 
-namespace NeXTMake.UI
+namespace PocoRender.UI
 {
     public class DragRotator : MonoBehaviour, IDragHandler
     {
@@ -14,4 +14,5 @@ namespace NeXTMake.UI
         }
     }
 }
+
 

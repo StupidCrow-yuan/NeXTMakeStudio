@@ -1,6 +1,6 @@
-using UnityEngine;
+﻿using UnityEngine;
 
-namespace NeXTMake.UI
+namespace PocoRender.UI
 {
     public class LayerData : MonoBehaviour
     {
@@ -13,4 +13,5 @@ namespace NeXTMake.UI
         public int customDepthHeight;
     }
 }
+
 

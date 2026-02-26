@@ -1,7 +1,7 @@
-using UnityEditor;
+﻿using UnityEditor;
 using UnityEngine;
 
-namespace NeXTMake.UI.EditorTools
+namespace PocoRender.UI.EditorTools
 {
     [InitializeOnLoad]
     public static class DepthAnythingV2SettingsAutoCreate
@@ -15,7 +15,7 @@ namespace NeXTMake.UI.EditorTools
 
         private static void EnsureAsset()
         {
-            var existing = AssetDatabase.LoadAssetAtPath<NeXTMake.UI.TextureEffects.DepthAnythingV2Settings>(AssetPath);
+            var existing = AssetDatabase.LoadAssetAtPath<PocoRender.UI.TextureEffects.DepthAnythingV2Settings>(AssetPath);
             if (existing != null) return;
 
             if (!AssetDatabase.IsValidFolder("Assets/Resources"))
@@ -23,7 +23,7 @@ namespace NeXTMake.UI.EditorTools
                 AssetDatabase.CreateFolder("Assets", "Resources");
             }
 
-            var asset = ScriptableObject.CreateInstance<NeXTMake.UI.TextureEffects.DepthAnythingV2Settings>();
+            var asset = ScriptableObject.CreateInstance<PocoRender.UI.TextureEffects.DepthAnythingV2Settings>();
             AssetDatabase.CreateAsset(asset, AssetPath);
             AssetDatabase.SaveAssets();
             AssetDatabase.Refresh();
@@ -32,5 +32,6 @@ namespace NeXTMake.UI.EditorTools
         }
     }
 }
+
 
 

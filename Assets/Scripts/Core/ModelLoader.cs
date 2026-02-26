@@ -1,4 +1,4 @@
-using UnityEngine;
+﻿using UnityEngine;
 using System.Collections;
 using System.IO;
 using System.Threading.Tasks;
@@ -9,7 +9,7 @@ using System.Linq;
 using System.IO.Compression;
 using System.Xml;
 
-namespace NeXTMake.Core
+namespace PocoRender.Core
 {
     /// <summary>
     /// 3D模型加载器，支持STL、OBJ、3MF等格式
@@ -1698,4 +1698,5 @@ namespace NeXTMake.Core
         }
     }
 }
+
 

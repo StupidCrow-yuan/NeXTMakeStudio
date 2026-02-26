@@ -1,10 +1,10 @@
-using UnityEngine;
+﻿using UnityEngine;
 using System;
 using System.Runtime.InteropServices;
 using System.Threading.Tasks;
 using System.Collections;
 
-namespace NeXTMake.Communication
+namespace PocoRender.Communication
 {
     public class CppBridge : MonoBehaviour
     {

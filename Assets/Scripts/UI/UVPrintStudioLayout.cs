@@ -1,7 +1,7 @@
-using UnityEngine;
+﻿using UnityEngine;
 using UnityEngine.UI;
 
-namespace NeXTMake.UI
+namespace PocoRender.UI
 {
     public class UVPrintStudioLayout : MonoBehaviour
     {
@@ -14,4 +14,5 @@ namespace NeXTMake.UI
         public void Hide() => gameObject.SetActive(false);
     }
 }
+
 

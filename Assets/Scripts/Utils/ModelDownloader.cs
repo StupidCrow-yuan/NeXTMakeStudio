@@ -1,11 +1,11 @@
-using UnityEngine;
+﻿using UnityEngine;
 using System.Collections;
 using System.IO;
 using System.Net;
 using System.Threading.Tasks;
 using System;
 
-namespace NeXTMake.Utils
+namespace PocoRender.Utils
 {
     /// <summary>
     /// 模型下载器，用于从makerworld.com.cn下载3D模型
@@ -105,4 +105,5 @@ namespace NeXTMake.Utils
         public event StatusUpdateDelegate UpdateStatus;
     }
 }
+
 

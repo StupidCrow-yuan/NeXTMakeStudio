@@ -1,6 +1,6 @@
-using UnityEngine;
+﻿using UnityEngine;
 
-namespace NeXTMake.UI.TextureEffects
+namespace PocoRender.UI.TextureEffects
 {
     public static class SpriteTextureUtil
     {
@@ -68,5 +68,6 @@ namespace NeXTMake.UI.TextureEffects
         }
     }
 }
+
 
 

@@ -1,7 +1,7 @@
-using UnityEngine;
+ï»¿using UnityEngine;
 using UnityEngine.UI;
 
-namespace NeXTMake.UI
+namespace PocoRender.UI
 {
     public class ImageViewer : MonoBehaviour
     {
@@ -32,7 +32,7 @@ namespace NeXTMake.UI
             {
                 rawImage.texture = texture;
 
-                // µ÷Õû´óÐ¡ÒÔÊÊÓ¦ÊÓÍ¼
+                // ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ð¡ï¿½ï¿½ï¿½ï¿½Ó¦ï¿½ï¿½Í¼
                 RectTransform rectTransform = rawImage.GetComponent<RectTransform>();
                 if (rectTransform != null)
                 {

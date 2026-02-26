@@ -1,20 +1,20 @@
-using UnityEngine;
+﻿using UnityEngine;
 using UnityEngine.EventSystems;
-using NeXTMake.UI.Core;
+using PocoRender.UI.Core;
 
-namespace NeXTMake.UI
+namespace PocoRender.UI
 {
     /// <summary>
-    /// Ensures NeXTMake Studio UI is built when entering play mode, even if the scene
-    /// doesn't already contain a NeXTMakeStudioUIAutoSetup GameObject.
+    /// Ensures PocoRender Studio UI is built when entering play mode, even if the scene
+    /// doesn't already contain a PocoRenderStudioUIAutoSetup GameObject.
     /// </summary>
-    public static class NeXTMakeStudioBootstrap
+    public static class PocoRenderStudioBootstrap
     {
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
         private static void EnsureUI()
         {
             // If UI manager already exists, assume UI is built.
-            if (Object.FindObjectOfType<NeXTMakeStudioUIManager>() != null)
+            if (Object.FindObjectOfType<PocoRenderStudioUIManager>() != null)
                 return;
 
             // Ensure there is an EventSystem so the selection dialog can be clicked.
@@ -28,16 +28,18 @@ namespace NeXTMake.UI
             UIFactory.FindOrCreateCanvas();
 
             // Create setup object and build UI once.
-            var setup = new GameObject("NeXTMakeStudioSetup");
+            var setup = new GameObject("PocoRenderStudioSetup");
             Object.DontDestroyOnLoad(setup);
 
-            var auto = setup.AddComponent<NeXTMakeStudioUIAutoSetup>();
+            var auto = setup.AddComponent<PocoRenderStudioUIAutoSetup>();
             auto.autoCreateOnStart = false; // avoid double build from Start()
             auto.replaceOldUI = true;
 
-            auto.SetupNeXTMakeStudioUI();
+            auto.SetupPocoRenderStudioUI();
         }
     }
 }
+
+
 
 

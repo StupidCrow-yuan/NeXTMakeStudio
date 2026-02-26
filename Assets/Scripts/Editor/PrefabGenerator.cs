@@ -1,21 +1,21 @@
-#if UNITY_EDITOR
+﻿#if UNITY_EDITOR
 using UnityEngine;
 using UnityEngine.UI;
 using UnityEditor;
-using NeXTMake.UI;
-using NeXTMake.UI.Core;
-using NeXTMake.UI.Modules;
+using PocoRender.UI;
+using PocoRender.UI.Core;
+using PocoRender.UI.Modules;
 
 /// <summary>
 /// Editor utility to generate Prefabs from the current code-generated UI.
-/// Run from menu: NeXTMake > Generate Prefabs.
+/// Run from menu: PocoRender > Generate Prefabs.
 /// After generation, the runtime can instantiate these prefabs instead of code-gen.
 /// </summary>
 public static class PrefabGenerator
 {
     private const string PrefabRoot = "Assets/Prefabs/UI";
 
-    [MenuItem("NeXTMake/Generate All Prefabs")]
+    [MenuItem("PocoRender/Generate All Prefabs")]
     public static void GenerateAllPrefabs()
     {
         EnsureDirectory(PrefabRoot);
@@ -25,7 +25,7 @@ public static class PrefabGenerator
         AssetDatabase.Refresh();
     }
 
-    [MenuItem("NeXTMake/Generate Canvas Editor Prefab")]
+    [MenuItem("PocoRender/Generate Canvas Editor Prefab")]
     public static void GenerateCanvasEditorPrefab()
     {
         EnsureDirectory(PrefabRoot);
@@ -49,7 +49,7 @@ public static class PrefabGenerator
         Object.DestroyImmediate(tempParent);
     }
 
-    [MenuItem("NeXTMake/Generate Selection Dialog Prefab")]
+    [MenuItem("PocoRender/Generate Selection Dialog Prefab")]
     public static void GenerateSelectionDialogPrefab()
     {
         EnsureDirectory(PrefabRoot);
@@ -112,3 +112,5 @@ public static class PrefabGenerator
     }
 }
 #endif
+
+

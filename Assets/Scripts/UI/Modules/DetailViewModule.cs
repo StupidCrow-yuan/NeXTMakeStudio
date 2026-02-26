@@ -1,10 +1,10 @@
-using UnityEngine;
+﻿using UnityEngine;
 using UnityEngine.UI;
-using NeXTMake.UI.Core; 
+using PocoRender.UI.Core; 
 using System.Collections.Generic;
-using NeXTMake.UI; // For ProjectDetailViewUpdater
+using PocoRender.UI; // For ProjectDetailViewUpdater
 
-namespace NeXTMake.UI.Modules
+namespace PocoRender.UI.Modules
 {
     public class DetailViewModule
     {
@@ -198,7 +198,7 @@ namespace NeXTMake.UI.Modules
             GameObject details = UIFactory.CreateObject("Details", content); details.AddComponent<LayoutElement>().minHeight = 200;
             details.AddComponent<Image>().color = Color.white;
             VerticalLayoutGroup dlg = details.AddComponent<VerticalLayoutGroup>(); dlg.padding = new RectOffset(20, 20, 20, 20);
-            UIFactory.CreateText("Device: NeXTMake Printer E1", details, 16, UIFactory.COLOR_TEXT_DARK, Vector2.zero, new Vector2(0, 30), TextAnchor.MiddleLeft);
+            UIFactory.CreateText("Device: PocoRender Printer E1", details, 16, UIFactory.COLOR_TEXT_DARK, Vector2.zero, new Vector2(0, 30), TextAnchor.MiddleLeft);
             UIFactory.CreateText("Print Mode: Standard Flatbed", details, 16, UIFactory.COLOR_TEXT_DARK, Vector2.zero, new Vector2(0, 30), TextAnchor.MiddleLeft);
             UIFactory.CreateText("Material: Acrylic", details, 16, UIFactory.COLOR_TEXT_DARK, Vector2.zero, new Vector2(0, 30), TextAnchor.MiddleLeft);
 
@@ -244,4 +244,6 @@ namespace NeXTMake.UI.Modules
         }
     }
 }
+
+
 

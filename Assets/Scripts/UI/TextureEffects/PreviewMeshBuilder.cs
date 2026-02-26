@@ -1,7 +1,7 @@
-using UnityEngine;
+﻿using UnityEngine;
 using UnityEngine.UI;
 
-namespace NeXTMake.UI.TextureEffects
+namespace PocoRender.UI.TextureEffects
 {
     public static class PreviewMeshBuilder
     {
@@ -95,5 +95,6 @@ namespace NeXTMake.UI.TextureEffects
         }
     }
 }
+
 
 

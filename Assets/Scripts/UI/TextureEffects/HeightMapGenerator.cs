@@ -1,6 +1,6 @@
-using UnityEngine;
+﻿using UnityEngine;
 
-namespace NeXTMake.UI.TextureEffects
+namespace PocoRender.UI.TextureEffects
 {
     public static class HeightMapGenerator
     {
@@ -146,5 +146,6 @@ namespace NeXTMake.UI.TextureEffects
         }
     }
 }
+
 
 

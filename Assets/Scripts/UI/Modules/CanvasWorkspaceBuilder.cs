@@ -1,8 +1,8 @@
-using UnityEngine;
+﻿using UnityEngine;
 using UnityEngine.UI;
-using NeXTMake.UI.Core;
+using PocoRender.UI.Core;
 
-namespace NeXTMake.UI.Modules
+namespace PocoRender.UI.Modules
 {
     public static class CanvasWorkspaceBuilder
     {
@@ -241,3 +241,4 @@ namespace NeXTMake.UI.Modules
         }
     }
 }
+
