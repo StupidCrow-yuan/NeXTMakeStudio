@@ -35,45 +35,18 @@ namespace PocoRender.UI.Modules
             // later sections throw an exception during UI construction.
             manager.uvPrintLayout = layout;
 
-            // Top Row
-            GameObject topRow = UIFactory.CreateObject("TopRow", layoutObj);
-            RectTransform trRect = topRow.GetComponent<RectTransform>();
-            trRect.anchorMin = new Vector2(0, 1); trRect.anchorMax = new Vector2(1, 1);
-            trRect.pivot = new Vector2(0.5f, 1); trRect.sizeDelta = new Vector2(0, 30); trRect.anchoredPosition = Vector2.zero;
-            topRow.AddComponent<Image>().color = new Color(0.15f, 0.15f, 0.15f);
-
-            GameObject menus = UIFactory.CreateObject("Menus", topRow);
-            HorizontalLayoutGroup mlg = menus.AddComponent<HorizontalLayoutGroup>();
-            mlg.spacing = 15; mlg.padding = new RectOffset(10, 0, 0, 0); mlg.childAlignment = TextAnchor.MiddleLeft;
-            mlg.childForceExpandWidth = false;
-            RectTransform mr = menus.GetComponent<RectTransform>();
-            mr.anchorMin = new Vector2(0, 0); mr.anchorMax = new Vector2(0, 1); mr.pivot = new Vector2(0, 0.5f);
-            menus.AddComponent<ContentSizeFitter>().horizontalFit = ContentSizeFitter.FitMode.PreferredSize;
-
-            string[] menuItems = { "View", "Settings", "Help", "Account" };
-            foreach (var m in menuItems) UIFactory.CreateTextButton(m, menus, 12, UIFactory.COLOR_TEXT_LIGHT);
-            UIFactory.CreateText("PocoRender Studio-1.0.0.0", topRow, 12, Color.gray, Vector2.zero, new Vector2(300, 30), TextAnchor.MiddleCenter);
-
-            GameObject winControls = UIFactory.CreateObject("WinControls", topRow);
-            HorizontalLayoutGroup wlg = winControls.AddComponent<HorizontalLayoutGroup>();
-            wlg.childAlignment = TextAnchor.MiddleRight; wlg.spacing = 5;
-            RectTransform wr = winControls.GetComponent<RectTransform>();
-            wr.anchorMin = new Vector2(1, 0); wr.anchorMax = new Vector2(1, 1);
-            wr.sizeDelta = new Vector2(100, 0); wr.anchoredPosition = Vector2.zero;
-            UIFactory.CreateTextButton("-", winControls, 14, Color.gray); UIFactory.CreateTextButton("□", winControls, 12, Color.gray); UIFactory.CreateTextButton("X", winControls, 12, Color.gray);
-
-            // Global Tab Bar
+            // Global Tab Bar (top of window — no separate menu row needed, Qt handles View/Settings/Help/Account)
             GameObject tabBar = UIFactory.CreateObject("GlobalTabBar", layoutObj);
             RectTransform tbRect = tabBar.GetComponent<RectTransform>();
             tbRect.anchorMin = new Vector2(0, 1); tbRect.anchorMax = new Vector2(1, 1);
-            tbRect.pivot = new Vector2(0.5f, 1); tbRect.sizeDelta = new Vector2(0, 50); tbRect.anchoredPosition = new Vector2(0, -30);
+            tbRect.pivot = new Vector2(0.5f, 1); tbRect.sizeDelta = new Vector2(0, 50); tbRect.anchoredPosition = Vector2.zero;
             tabBar.AddComponent<Image>().color = new Color(0.92f, 0.92f, 0.92f);
 
             // Sub-Toolbar (Secondary Bar)
             subToolbar = UIFactory.CreateObject("SubToolbar", layoutObj);
             RectTransform subRect = subToolbar.GetComponent<RectTransform>();
             subRect.anchorMin = new Vector2(0, 1); subRect.anchorMax = new Vector2(1, 1);
-            subRect.pivot = new Vector2(0.5f, 1); subRect.sizeDelta = new Vector2(0, 50); subRect.anchoredPosition = new Vector2(0, -80);
+            subRect.pivot = new Vector2(0.5f, 1); subRect.sizeDelta = new Vector2(0, 50); subRect.anchoredPosition = new Vector2(0, -50);
             subToolbar.AddComponent<Image>().color = Color.white;
             subToolbar.AddComponent<Outline>().effectColor = new Color(0.9f, 0.9f, 0.9f);
             subToolbar.SetActive(false); // Only visible in editor
@@ -162,7 +135,7 @@ namespace PocoRender.UI.Modules
             GameObject viewContainer = UIFactory.CreateObject("ViewContainer", layoutObj);
             RectTransform vcRect = viewContainer.GetComponent<RectTransform>();
             vcRect.anchorMin = Vector2.zero; vcRect.anchorMax = Vector2.one;
-            vcRect.offsetMin = Vector2.zero; vcRect.offsetMax = new Vector2(0, -130); 
+            vcRect.offsetMin = Vector2.zero; vcRect.offsetMax = new Vector2(0, -100); 
             
             // --- 3D Preview View (Full Screen) ---
             previewView = UIFactory.CreateObject("PreviewView", viewContainer);
@@ -287,15 +260,12 @@ namespace PocoRender.UI.Modules
             LayoutElement hle = homeTab.GetComponent<LayoutElement>(); hle.minWidth = 80; hle.minHeight = 36;
             Button homeBtn = homeTab.GetComponent<Button>();
             
-            GameObject deviceTab = UIFactory.CreateTextButton("💻 DEVICE", tabsContainer, 14, UIFactory.COLOR_TEXT_DARK);
-            LayoutElement dle = deviceTab.GetComponent<LayoutElement>(); dle.minWidth = 80; dle.minHeight = 36;
-            
             System.Action SwitchToHome = () => {
                 ResetTabs(); homeTab.GetComponent<Image>().color = Color.white; 
                 homeView.SetActive(true); centerInfo.SetActive(false);
                 rightHome.SetActive(true); rightCanvas.SetActive(false);
                 subToolbar.SetActive(false); // Hide sub toolbar in home
-                vcRect.offsetMax = new Vector2(0, -80); // Restore height
+                vcRect.offsetMax = new Vector2(0, -50); // Restore height
                 activeController = null; // No active controller in home
                 currentActiveCanvas = null;
                 foreach(Transform t in viewContainer.transform) if (t.name.StartsWith("CanvasView")) t.gameObject.SetActive(false);
@@ -311,7 +281,7 @@ namespace PocoRender.UI.Modules
                 
                 // Switch context UI
                 subToolbar.SetActive(true); // Show sub toolbar in editor
-                vcRect.offsetMax = new Vector2(0, -130); // Shrink view to fit subtoolbar
+                vcRect.offsetMax = new Vector2(0, -100); // Shrink view to fit subtoolbar
                 
                 // 1. Create View
                 GameObject cv = UIFactory.CreateObject($"CanvasView_{canvasCount}", viewContainer);
@@ -402,7 +372,7 @@ namespace PocoRender.UI.Modules
                     homeView.SetActive(false); centerInfo.SetActive(true);
                     rightHome.SetActive(false); rightCanvas.SetActive(true);
                     subToolbar.SetActive(true); // Show sub toolbar
-                    vcRect.offsetMax = new Vector2(0, -130); 
+                    vcRect.offsetMax = new Vector2(0, -100); 
                     foreach(Transform t in viewContainer.transform) if (t.name.StartsWith("CanvasView")) t.gameObject.SetActive(false);
                     cv.SetActive(true);
                     activeController = cv.GetComponentInChildren<CanvasController>(); // Switch active controller

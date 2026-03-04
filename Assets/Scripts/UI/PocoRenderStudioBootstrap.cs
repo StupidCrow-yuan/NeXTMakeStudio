@@ -51,7 +51,6 @@ namespace PocoRender.UI
 
             if (BuildMode.IsEmbeddedMode)
             {
-                // Legacy embedded mode: full bidirectional IPC
                 var bridgeGo = new GameObject("QtBridgeController");
                 Object.DontDestroyOnLoad(bridgeGo);
                 bridgeGo.AddComponent<QtBridgeController>();
@@ -59,12 +58,11 @@ namespace PocoRender.UI
             }
             else if (BuildMode.HasPrintService)
             {
-                // Plan A: standalone mode launched from PocoStudio
-                var printGo = new GameObject("PrintButtonController");
-                Object.DontDestroyOnLoad(printGo);
-                printGo.AddComponent<PrintButtonController>();
-                Debug.Log("[Bootstrap] PrintButtonController created (Plan A: print service port=" +
-                          BuildMode.PrintServicePort + ")");
+                // Plan A: Print is handled by the existing Print button in the
+                // canvas editor right panel (OnPrintRequested → SendCanvasToPrint).
+                // No extra floating button needed.
+                Debug.Log("[Bootstrap] Plan A mode — print service port=" +
+                          BuildMode.PrintServicePort);
             }
         }
     }

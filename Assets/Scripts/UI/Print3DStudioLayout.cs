@@ -1,4 +1,4 @@
-﻿using UnityEngine;
+using UnityEngine;
 using UnityEngine.UI;
 
 namespace PocoRender.UI
@@ -6,7 +6,6 @@ namespace PocoRender.UI
     public class Print3DStudioLayout : MonoBehaviour
     {
         public RectTransform mainContainer;
-        public RectTransform topRow;    // Menu Bar
         public RectTransform secondRow; // Function Bar
         public RectTransform sidebar;
         public RectTransform contentArea;

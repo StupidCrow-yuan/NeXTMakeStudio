@@ -17,47 +17,12 @@ namespace PocoRender.UI.Modules
             layout.mainContainer = layoutObj.GetComponent<RectTransform>();
             manager.print3DLayout = layout;
 
-            // 1. Top Row (System Menu)
-            GameObject topRow = UIFactory.CreateObject("TopRow", layoutObj);
-            RectTransform trRect = topRow.GetComponent<RectTransform>();
-            trRect.anchorMin = new Vector2(0, 1); trRect.anchorMax = new Vector2(1, 1);
-            trRect.pivot = new Vector2(0.5f, 1);
-            trRect.sizeDelta = new Vector2(0, 30); trRect.anchoredPosition = Vector2.zero;
-            topRow.AddComponent<Image>().color = new Color(0.15f, 0.15f, 0.15f);
-
-            layout.topRow = trRect;
-
-            GameObject menus = UIFactory.CreateObject("Menus", topRow);
-            HorizontalLayoutGroup mlg = menus.AddComponent<HorizontalLayoutGroup>();
-            mlg.spacing = 15; mlg.padding = new RectOffset(10, 0, 0, 0); mlg.childAlignment = TextAnchor.MiddleLeft;
-            mlg.childForceExpandWidth = false;
-            RectTransform menusRect = menus.GetComponent<RectTransform>();
-            menusRect.anchorMin = new Vector2(0, 0); menusRect.anchorMax = new Vector2(0, 1); menusRect.pivot = new Vector2(0, 0.5f);
-            menus.AddComponent<ContentSizeFitter>().horizontalFit = ContentSizeFitter.FitMode.PreferredSize;
-            
-            string[] menuItems = { "File", "Edit", "View", "Settings", "Calibration", "Help", "Account" };
-            foreach (var m in menuItems) UIFactory.CreateTextButton(m, menus, 12, UIFactory.COLOR_TEXT_LIGHT);
-
-            UIFactory.CreateText("PocoRender Studio - 1.0.0", topRow, 12, Color.gray, Vector2.zero, new Vector2(400, 30), TextAnchor.MiddleCenter);
-
-            GameObject winControls = UIFactory.CreateObject("WinControls", topRow);
-            HorizontalLayoutGroup wlg = winControls.AddComponent<HorizontalLayoutGroup>();
-            wlg.childAlignment = TextAnchor.MiddleRight; wlg.spacing = 5;
-            RectTransform wr = winControls.GetComponent<RectTransform>();
-            wr.anchorMin = new Vector2(1, 0); wr.anchorMax = new Vector2(1, 1);
-            wr.sizeDelta = new Vector2(100, 0); wr.anchoredPosition = Vector2.zero;
-            
-            UIFactory.CreateTextButton("-", winControls, 14, Color.gray);
-            UIFactory.CreateTextButton("□", winControls, 12, Color.gray);
-            UIFactory.CreateTextButton("X", winControls, 12, Color.gray);
-
-
-            // 2. Function Bar (Second Row)
+            // Function Bar (top of window — no separate menu row, Qt handles menus)
             GameObject funcBar = UIFactory.CreateObject("FunctionBar", layoutObj);
             RectTransform frRect = funcBar.GetComponent<RectTransform>();
             frRect.anchorMin = new Vector2(0, 1); frRect.anchorMax = new Vector2(1, 1);
             frRect.pivot = new Vector2(0.5f, 1);
-            frRect.sizeDelta = new Vector2(0, 50); frRect.anchoredPosition = new Vector2(0, -30);
+            frRect.sizeDelta = new Vector2(0, 50); frRect.anchoredPosition = Vector2.zero;
             funcBar.AddComponent<Image>().color = new Color(0.2f, 0.2f, 0.2f);
 
             layout.secondRow = frRect;
@@ -104,8 +69,8 @@ namespace PocoRender.UI.Modules
             RectTransform sr = sidebar.GetComponent<RectTransform>();
             sr.anchorMin = new Vector2(0, 0); sr.anchorMax = new Vector2(0, 1);
             sr.pivot = new Vector2(0, 1);
-            sr.sizeDelta = new Vector2(260, 0); sr.anchoredPosition = new Vector2(0, -80);
-            sr.offsetMax = new Vector2(260, -80);
+            sr.sizeDelta = new Vector2(260, 0); sr.anchoredPosition = new Vector2(0, -50);
+            sr.offsetMax = new Vector2(260, -50);
             sidebar.AddComponent<Image>().color = new Color(0.15f, 0.15f, 0.15f);
 
             VerticalLayoutGroup vlg = sidebar.AddComponent<VerticalLayoutGroup>();
@@ -124,7 +89,7 @@ namespace PocoRender.UI.Modules
             GameObject contentContainer = UIFactory.CreateObject("ContentContainer", layoutObj);
             RectTransform cr = contentContainer.GetComponent<RectTransform>();
             cr.anchorMin = new Vector2(0, 0); cr.anchorMax = new Vector2(1, 1);
-            cr.offsetMin = new Vector2(260, 0); cr.offsetMax = new Vector2(0, -80);
+            cr.offsetMin = new Vector2(260, 0); cr.offsetMax = new Vector2(0, -50);
 
             GameObject lang = UIFactory.CreateObject("Lang", contentContainer);
             RectTransform lr = lang.GetComponent<RectTransform>();
