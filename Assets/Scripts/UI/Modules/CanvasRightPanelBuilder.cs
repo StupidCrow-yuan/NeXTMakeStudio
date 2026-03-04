@@ -1,4 +1,4 @@
-﻿using UnityEngine;
+using UnityEngine;
 using UnityEngine.UI;
 using System.Collections.Generic;
 using PocoRender.UI.Core;
@@ -219,6 +219,8 @@ namespace PocoRender.UI.Modules
             CreateMaterialSection(parent, controller);
             // Quality
             CreateQualitySection(parent, controller);
+            // Print Settings (migrated from Qt Print Setting)
+            CreateGlobalPrintSettingsSection(parent, controller);
             // Choke
             CreateChokeSection(parent, controller);
             // Print Area
@@ -337,6 +339,84 @@ namespace PocoRender.UI.Modules
             VerticalLayoutGroup qavg = qualSection.AddComponent<VerticalLayoutGroup>(); qavg.spacing = 10;
             UIFactory.CreateText("Quality", qualSection, 14, Color.black, Vector2.zero, new Vector2(0, 20), TextAnchor.MiddleLeft, FontStyle.Bold);
             CanvasModalBuilder.CreateCustomDropdown("QualDropdown", qualSection, new[]{ "High Quality", "Standard", "Draft" }, 0, (idx) => {});
+        }
+
+        private static void CreateGlobalPrintSettingsSection(GameObject parent, CanvasController controller)
+        {
+            GameObject section = UIFactory.CreateObject("GlobalPrintSettings", parent);
+            VerticalLayoutGroup vlg = section.AddComponent<VerticalLayoutGroup>();
+            vlg.spacing = 8;
+            vlg.childControlHeight = true;
+            vlg.childForceExpandWidth = true;
+
+            UIFactory.CreateText("Print Settings", section, 14, Color.black, Vector2.zero, new Vector2(0, 20), TextAnchor.MiddleLeft, FontStyle.Bold);
+
+            // DPI
+            CanvasModalBuilder.CreateCustomDropdown("PrintDpiDropdown", section,
+                new[] { "180 DPI", "240 DPI", "300 DPI", "360 DPI", "600 DPI" }, 3,
+                (idx) =>
+                {
+                    int[] values = { 180, 240, 300, 360, 600 };
+                    if (idx >= 0 && idx < values.Length) controller.printResolutionDpi = values[idx];
+                });
+
+            // Color mode
+            CanvasModalBuilder.CreateCustomDropdown("PrintColorModeDropdown", section,
+                new[] { "CMYK", "Gray" }, 0,
+                (idx) => { controller.printColorMode = idx == 1 ? "Gray" : "CMYK"; });
+
+            // Paper size
+            CanvasModalBuilder.CreateCustomDropdown("PrintPaperSizeDropdown", section,
+                new[] { "A4", "A3", "Custom" }, 0,
+                (idx) =>
+                {
+                    if (idx == 1) controller.printPaperSize = "A3";
+                    else if (idx == 2) controller.printPaperSize = "custom";
+                    else controller.printPaperSize = "A4";
+                });
+
+            // Media
+            CanvasModalBuilder.CreateCustomDropdown("PrintMediaDropdown", section,
+                new[] { "plain", "photo", "canvas" }, 0,
+                (idx) =>
+                {
+                    if (idx == 1) controller.printMediaType = "photo";
+                    else if (idx == 2) controller.printMediaType = "canvas";
+                    else controller.printMediaType = "plain";
+                });
+
+            // Toggles
+            System.Action<string, bool, System.Action<bool>> addToggle = (label, defaultValue, setter) =>
+            {
+                GameObject row = UIFactory.CreateObject(label + "Row", section);
+                row.AddComponent<LayoutElement>().minHeight = 28;
+                HorizontalLayoutGroup h = row.AddComponent<HorizontalLayoutGroup>();
+                h.spacing = 8;
+                h.childAlignment = TextAnchor.MiddleLeft;
+                h.childForceExpandWidth = false;
+
+                GameObject btnObj = UIFactory.CreateButton(defaultValue ? "✔" : "", row, Vector2.zero, new Vector2(24, 24),
+                    defaultValue ? UIFactory.COLOR_ACCENT_GREEN : Color.gray, Color.white);
+                Button btn = btnObj.GetComponent<Button>();
+                Text txt = UIFactory.CreateText(label, row, 12, Color.black, Vector2.zero, Vector2.zero, TextAnchor.MiddleLeft).GetComponent<Text>();
+                txt.alignment = TextAnchor.MiddleLeft;
+                bool state = defaultValue;
+                setter(state);
+                btn.onClick.AddListener(() =>
+                {
+                    state = !state;
+                    btnObj.GetComponent<Image>().color = state ? UIFactory.COLOR_ACCENT_GREEN : Color.gray;
+                    btnObj.GetComponentInChildren<Text>().text = state ? "✔" : "";
+                    setter(state);
+                });
+            };
+
+            addToggle("Halftone", true, (v) => controller.printEnableHalftone = v);
+            addToggle("Ink Optimization", false, (v) => controller.printEnableInkOptimization = v);
+            addToggle("Skin Detection", true, (v) => controller.printEnableSkinDetection = v);
+            addToggle("Guided Filter", true, (v) => controller.printEnableGuidedFilter = v);
+            addToggle("Show Ink Preview", true, (v) => controller.printShowInkPreview = v);
+            addToggle("Mirror Print", false, (v) => controller.printMirror = v);
         }
 
         private static void CreateChokeSection(GameObject parent, CanvasController controller)

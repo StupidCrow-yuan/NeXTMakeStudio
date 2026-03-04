@@ -27,6 +27,23 @@ namespace PocoRender.Communication
     /// </summary>
     public class PrintClient
     {
+        [Serializable]
+        public class PrintOptions
+        {
+            public int dpi = 300;
+            public int copies = 1;
+            public string paper_size = "A4";
+            public string color_profile = "CMYK";
+            public string media_type = "plain";
+            public bool mirror_print = false;
+            public string color_mode = "CMYK";
+            public bool enable_halftone = true;
+            public bool enable_ink_optimization = false;
+            public bool enable_skin_detection = true;
+            public bool enable_guided_filter = true;
+            public bool show_ink_preview = true;
+        }
+
         private static PrintClient _instance;
         public static PrintClient Instance => _instance ??= new PrintClient();
 
@@ -84,6 +101,14 @@ namespace PocoRender.Communication
                                              int width, int height, int dpi = 300,
                                              int copies = 1)
         {
+            var options = new PrintOptions { dpi = dpi, copies = copies };
+            return SendPrintRequestWithData(projectName, pngData, width, height, options);
+        }
+
+        public bool SendPrintRequestWithData(string projectName, byte[] pngData,
+                                             int width, int height, PrintOptions options)
+        {
+            options ??= new PrintOptions();
             var payload = new PrintRequestPayload
             {
                 type = "print_request",
@@ -92,8 +117,18 @@ namespace PocoRender.Communication
                 image_data_b64 = Convert.ToBase64String(pngData),
                 width = width,
                 height = height,
-                dpi = dpi,
-                copies = copies
+                dpi = options.dpi,
+                copies = options.copies,
+                paper_size = options.paper_size ?? "A4",
+                color_profile = options.color_profile ?? "CMYK",
+                media_type = options.media_type ?? "plain",
+                mirror_print = options.mirror_print,
+                color_mode = options.color_mode ?? "CMYK",
+                enable_halftone = options.enable_halftone,
+                enable_ink_optimization = options.enable_ink_optimization,
+                enable_skin_detection = options.enable_skin_detection,
+                enable_guided_filter = options.enable_guided_filter,
+                show_ink_preview = options.show_ink_preview
             };
             return SendJson(JsonUtility.ToJson(payload));
         }
@@ -145,6 +180,16 @@ namespace PocoRender.Communication
             public int height;
             public int dpi;
             public int copies;
+            public string paper_size;
+            public string color_profile;
+            public string media_type;
+            public bool mirror_print;
+            public string color_mode;
+            public bool enable_halftone;
+            public bool enable_ink_optimization;
+            public bool enable_skin_detection;
+            public bool enable_guided_filter;
+            public bool show_ink_preview;
         }
     }
 }

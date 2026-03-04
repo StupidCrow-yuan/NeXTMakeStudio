@@ -890,8 +890,24 @@ namespace PocoRender.UI.Modules
                 int h = composite.height;
                 Object.Destroy(composite);
 
+                var printOptions = new PrintClient.PrintOptions
+                {
+                    dpi = Mathf.Max(72, controller.printResolutionDpi),
+                    copies = Mathf.Max(1, controller.printCopies),
+                    paper_size = string.IsNullOrEmpty(controller.printPaperSize) ? "A4" : controller.printPaperSize,
+                    color_profile = string.IsNullOrEmpty(controller.printColorMode) ? "CMYK" : controller.printColorMode,
+                    media_type = string.IsNullOrEmpty(controller.printMediaType) ? "plain" : controller.printMediaType,
+                    mirror_print = controller.printMirror,
+                    color_mode = string.IsNullOrEmpty(controller.printColorMode) ? "CMYK" : controller.printColorMode,
+                    enable_halftone = controller.printEnableHalftone,
+                    enable_ink_optimization = controller.printEnableInkOptimization,
+                    enable_skin_detection = controller.printEnableSkinDetection,
+                    enable_guided_filter = controller.printEnableGuidedFilter,
+                    show_ink_preview = controller.printShowInkPreview
+                };
+
                 bool sent = PrintClient.Instance.SendPrintRequestWithData(
-                    projectName, png, w, h, 300, 1);
+                    projectName, png, w, h, printOptions);
                 Debug.Log($"[HomeModule] Print sent: {sent}  {w}x{h}  {png.Length} bytes");
             }
             catch (System.Exception ex)

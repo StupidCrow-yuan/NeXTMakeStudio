@@ -59,6 +59,19 @@ namespace PocoRender.UI
         public System.Action OnPreviewRequested;
         public System.Action OnPrintRequested;
 
+        [Header("Global Print Settings (Plan A)")]
+        public int printResolutionDpi = 360;
+        public int printCopies = 1;
+        public string printColorMode = "CMYK";
+        public string printPaperSize = "A4";
+        public string printMediaType = "plain";
+        public bool printMirror = false;
+        public bool printEnableHalftone = true;
+        public bool printEnableInkOptimization = false;
+        public bool printEnableSkinDetection = true;
+        public bool printEnableGuidedFilter = true;
+        public bool printShowInkPreview = true;
+
         [Header("Canvas Interaction")]
         public RectTransform paper; // The White Canvas area
         public Text zoomText;
