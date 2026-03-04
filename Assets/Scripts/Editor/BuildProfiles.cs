@@ -107,8 +107,32 @@ namespace PocoRender.Editor
 
         private static void SetDefines(string defines)
         {
+            // Preserve existing defines (e.g. HAS_SENTIS) and only
+            // add/remove build-profile-specific ones like EMBEDDED_MODE.
+            string existing = PlayerSettings.GetScriptingDefineSymbolsForGroup(
+                BuildTargetGroup.Standalone);
+
+            var set = new System.Collections.Generic.HashSet<string>(
+                existing.Split(new[] { ';' }, System.StringSplitOptions.RemoveEmptyEntries));
+
+            // Always remove build-profile toggles first
+            set.Remove("EMBEDDED_MODE");
+
+            // Then add whatever the caller requested
+            if (!string.IsNullOrEmpty(defines))
+            {
+                foreach (var d in defines.Split(';'))
+                {
+                    var trimmed = d.Trim();
+                    if (!string.IsNullOrEmpty(trimmed))
+                        set.Add(trimmed);
+                }
+            }
+
+            string result = string.Join(";", set);
             PlayerSettings.SetScriptingDefineSymbolsForGroup(
-                BuildTargetGroup.Standalone, defines);
+                BuildTargetGroup.Standalone, result);
+            Debug.Log($"[BuildProfiles] Scripting defines set to: {result}");
         }
 
         private static string[] FindScenes()
