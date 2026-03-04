@@ -1,4 +1,4 @@
-﻿using UnityEngine;
+using UnityEngine;
 using UnityEngine.UI;
 using UnityEngine.Events;
 using PocoRender.Core;
@@ -119,12 +119,11 @@ namespace PocoRender.UI
             Hide();
             if (OnStudioSelected != null)
             {
-                Debug.Log($"OnStudioSelected event has {OnStudioSelected.GetPersistentEventCount()} listeners");
                 OnStudioSelected.Invoke(selectedMode);
             }
             else
             {
-                Debug.LogWarning("OnStudioSelected event is null");
+                Debug.LogWarning("OnStudioSelected event is null — no handler will be called");
             }
         }
 

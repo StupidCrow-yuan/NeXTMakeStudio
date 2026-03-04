@@ -40,15 +40,31 @@ namespace PocoRender.UI
             auto.autoCreateOnStart = false; // avoid double build from Start()
             auto.replaceOldUI = true;
 
-            auto.SetupPocoRenderStudioUI();
+            try
+            {
+                auto.SetupPocoRenderStudioUI();
+            }
+            catch (System.Exception ex)
+            {
+                Debug.LogError($"[Bootstrap] UI setup failed: {ex}");
+            }
 
-            // In embedded mode, attach the IPC bridge controller.
             if (BuildMode.IsEmbeddedMode)
             {
+                // Legacy embedded mode: full bidirectional IPC
                 var bridgeGo = new GameObject("QtBridgeController");
                 Object.DontDestroyOnLoad(bridgeGo);
                 bridgeGo.AddComponent<QtBridgeController>();
                 Debug.Log("[Bootstrap] QtBridgeController created for embedded mode");
+            }
+            else if (BuildMode.HasPrintService)
+            {
+                // Plan A: standalone mode launched from PocoStudio
+                var printGo = new GameObject("PrintButtonController");
+                Object.DontDestroyOnLoad(printGo);
+                printGo.AddComponent<PrintButtonController>();
+                Debug.Log("[Bootstrap] PrintButtonController created (Plan A: print service port=" +
+                          BuildMode.PrintServicePort + ")");
             }
         }
     }

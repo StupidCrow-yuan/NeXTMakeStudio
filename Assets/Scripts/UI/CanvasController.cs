@@ -1,8 +1,9 @@
-﻿using UnityEngine;
+using UnityEngine;
 using UnityEngine.UI;
 using PocoRender.UI.Core;
 using System.Collections.Generic;
 using PocoRender.UI.TextureEffects;
+using PocoRender.Utils;
 
 namespace PocoRender.UI
 {
@@ -735,10 +736,11 @@ namespace PocoRender.UI
             paperPlane.transform.SetParent(container.transform);
             paperPlane.transform.localScale = new Vector3(6, 6, 1);
             paperPlane.transform.localRotation = Quaternion.Euler(90, 0, 0);
-            Material paperMat = new Material(Shader.Find("Standard"));
+            Material paperMat = SafeShaderHelper.CreateStandardMaterial();
+            if (paperMat == null) paperMat = paperPlane.GetComponent<Renderer>().material;
             paperMat.color = Color.white;
-            paperMat.SetFloat("_Glossiness", 0.2f); // Slight gloss so light sweep is visible
-            paperMat.SetFloat("_Metallic", 0f);
+            if (paperMat.HasProperty("_Glossiness")) paperMat.SetFloat("_Glossiness", 0.2f);
+            if (paperMat.HasProperty("_Metallic")) paperMat.SetFloat("_Metallic", 0f);
             paperPlane.GetComponent<Renderer>().material = paperMat;
 
             // 3. Get camera and ensure it's initialized
@@ -841,10 +843,10 @@ namespace PocoRender.UI
                         );
                     }
 
-                    // Material: Standard shader so it responds to lights
-                    Material mat = new Material(Shader.Find("Standard"));
-                    mat.SetFloat("_Glossiness", 0.3f); // Some shininess for light reflection
-                    mat.SetFloat("_Metallic", 0f);
+                    Material mat = SafeShaderHelper.CreateStandardMaterial();
+                    if (mat == null) mat = new Material(Shader.Find("Sprites/Default"));
+                    if (mat.HasProperty("_Glossiness")) mat.SetFloat("_Glossiness", 0.3f);
+                    if (mat.HasProperty("_Metallic")) mat.SetFloat("_Metallic", 0f);
 
                     if (selImg != null && selImg.sprite != null && selImg.sprite.texture != null)
                     {

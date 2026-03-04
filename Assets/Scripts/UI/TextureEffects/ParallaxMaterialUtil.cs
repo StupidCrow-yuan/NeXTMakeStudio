@@ -1,4 +1,5 @@
-﻿using UnityEngine;
+using UnityEngine;
+using PocoRender.Utils;
 
 namespace PocoRender.UI.TextureEffects
 {
@@ -6,7 +7,7 @@ namespace PocoRender.UI.TextureEffects
     {
         public static Material CreateParallaxMaterial(Texture2D mainTex, Texture2D heightMap, TextureMode mode)
         {
-            Shader shader = Shader.Find("Standard");
+            Shader shader = SafeShaderHelper.GetStandardShader();
             if (shader == null) return null;
 
             Material m = new Material(shader);

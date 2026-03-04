@@ -1,4 +1,4 @@
-﻿using UnityEngine;
+using UnityEngine;
 using UnityEngine.UI;
 using PocoRender.Core;
 using PocoRender.UI.Core;
@@ -57,10 +57,23 @@ namespace PocoRender.UI
             // So the parameter 'addCanvasCallback' in CreateUVPrintLayout signature (Line 13) is NOT used for creating new canvases.
             // It might be used for EXTERNAL calls if needed, but here we just pass null or empty action.
             
-            homeModule.CreateUVPrintLayout(mainContainer, uiManager, null);
-            
-            // Create 3D Print Layout
-            Print3DModule.CreatePrint3DLayout(mainContainer, uiManager);
+            try
+            {
+                homeModule.CreateUVPrintLayout(mainContainer, uiManager, null);
+            }
+            catch (System.Exception ex)
+            {
+                Debug.LogError($"[PocoRenderStudio] UV Print layout creation failed: {ex}");
+            }
+
+            try
+            {
+                Print3DModule.CreatePrint3DLayout(mainContainer, uiManager);
+            }
+            catch (System.Exception ex)
+            {
+                Debug.LogError($"[PocoRenderStudio] 3D Print layout creation failed: {ex}");
+            }
 
             uiManager.Initialize();
             Debug.Log("[PocoRenderStudio] UI setup completed.");

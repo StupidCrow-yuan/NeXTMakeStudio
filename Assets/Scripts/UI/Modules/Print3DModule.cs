@@ -15,6 +15,7 @@ namespace PocoRender.UI.Modules
 
             Print3DStudioLayout layout = layoutObj.AddComponent<Print3DStudioLayout>();
             layout.mainContainer = layoutObj.GetComponent<RectTransform>();
+            manager.print3DLayout = layout;
 
             // 1. Top Row (System Menu)
             GameObject topRow = UIFactory.CreateObject("TopRow", layoutObj);
@@ -167,7 +168,6 @@ namespace PocoRender.UI.Modules
             btnSlice.onClick.AddListener(() => layout.SwitchTab("Slice"));
             btnDevices.onClick.AddListener(() => layout.SwitchTab("Devices"));
 
-            manager.print3DLayout = layout;
             layout.Hide();
         }
 

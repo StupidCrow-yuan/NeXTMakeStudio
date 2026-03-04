@@ -1,6 +1,7 @@
-﻿using UnityEngine;
+using UnityEngine;
 using UnityEngine.UI;
 using UnityEngine.EventSystems;
+using PocoRender.Utils;
 
 namespace PocoRender.UI
 {
@@ -306,16 +307,20 @@ namespace PocoRender.UI
         /// </summary>
         void CreateSliceMaterial()
         {
-            sliceMaterial = new Material(Shader.Find("Standard"));
-            sliceMaterial.color = new Color(1f, 0.5f, 0f, 0.5f); // 半透明橙色
-            sliceMaterial.SetFloat("_Mode", 3); // 透明模式
-            sliceMaterial.SetInt("_SrcBlend", (int)UnityEngine.Rendering.BlendMode.SrcAlpha);
-            sliceMaterial.SetInt("_DstBlend", (int)UnityEngine.Rendering.BlendMode.OneMinusSrcAlpha);
-            sliceMaterial.SetInt("_ZWrite", 0);
-            sliceMaterial.DisableKeyword("_ALPHATEST_ON");
-            sliceMaterial.EnableKeyword("_ALPHABLEND_ON");
-            sliceMaterial.DisableKeyword("_ALPHAPREMULTIPLY_ON");
-            sliceMaterial.renderQueue = 3000;
+            sliceMaterial = SafeShaderHelper.CreateStandardMaterial();
+            if (sliceMaterial == null) return;
+            sliceMaterial.color = new Color(1f, 0.5f, 0f, 0.5f);
+            if (sliceMaterial.HasProperty("_Mode"))
+            {
+                sliceMaterial.SetFloat("_Mode", 3);
+                sliceMaterial.SetInt("_SrcBlend", (int)UnityEngine.Rendering.BlendMode.SrcAlpha);
+                sliceMaterial.SetInt("_DstBlend", (int)UnityEngine.Rendering.BlendMode.OneMinusSrcAlpha);
+                sliceMaterial.SetInt("_ZWrite", 0);
+                sliceMaterial.DisableKeyword("_ALPHATEST_ON");
+                sliceMaterial.EnableKeyword("_ALPHABLEND_ON");
+                sliceMaterial.DisableKeyword("_ALPHAPREMULTIPLY_ON");
+                sliceMaterial.renderQueue = 3000;
+            }
         }
 
         /// <summary>

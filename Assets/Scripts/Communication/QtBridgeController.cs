@@ -62,7 +62,17 @@ namespace PocoRender.Communication
         {
             if (BuildMode.IsStandaloneMode)
             {
-                Debug.Log("[QtBridgeController] Standalone mode — IPC disabled");
+                Debug.Log("[QtBridgeController] Standalone mode — old embedded IPC disabled");
+
+                // Plan A: if launched from PocoStudio with print service port,
+                // add the PrintButtonController so user can send print requests.
+                if (BuildMode.HasPrintService)
+                {
+                    if (gameObject.GetComponent<PrintButtonController>() == null)
+                        gameObject.AddComponent<PrintButtonController>();
+                    Debug.Log("[QtBridgeController] PrintButtonController added (Plan A)");
+                }
+
                 enabled = false;
                 return;
             }

@@ -1,9 +1,12 @@
-﻿using UnityEngine;
+using UnityEngine;
 using UnityEngine.UI;
 using PocoRender.UI.Core;
+using PocoRender.Core;
+using PocoRender.Communication;
 using System.Collections.Generic;
 using PocoRender.UI; // For PocoRenderStudioUIManager, UVPrintStudioLayout
 using PocoRender.UI.TextureEffects;
+using PocoRender.Utils;
 
 namespace PocoRender.UI.Modules
 {
@@ -27,6 +30,10 @@ namespace PocoRender.UI.Modules
 
             UVPrintStudioLayout layout = layoutObj.AddComponent<UVPrintStudioLayout>();
             layout.mainContainer = layoutObj.GetComponent<RectTransform>();
+
+            // Assign to manager immediately so ShowLayoutForMode works even if
+            // later sections throw an exception during UI construction.
+            manager.uvPrintLayout = layout;
 
             // Top Row
             GameObject topRow = UIFactory.CreateObject("TopRow", layoutObj);
@@ -183,10 +190,15 @@ namespace PocoRender.UI.Modules
             sceneContainer = new GameObject("Preview3DScene");
             modelViewer.modelContainer = sceneContainer;
             
-            // 1. Create a proper Grid floor
-            Create3DGrid(sceneContainer);
+            try
+            {
+                Create3DGrid(sceneContainer);
+            }
+            catch (System.Exception ex)
+            {
+                Debug.LogWarning($"[HomeModule] Create3DGrid failed (non-fatal): {ex.Message}");
+            }
 
-            // 2. Scene light: directional base only (spotlight added in Setup3DDesign)
             GameObject lightObj = new GameObject("PreviewLight");
             lightObj.transform.SetParent(sceneContainer.transform);
             lightObj.transform.rotation = Quaternion.Euler(50, 30, 0);
@@ -323,7 +335,15 @@ namespace PocoRender.UI.Modules
                         modelController.ResetTransform();
                     };
                     activeController.OnPrintRequested = () => {
-                        Debug.Log("Print initiated for " + canvasName);
+                        if (BuildMode.HasPrintService)
+                        {
+                            SendCanvasToPrint(activeController, canvasName);
+                        }
+                        else
+                        {
+                            Debug.Log("Print initiated for " + canvasName +
+                                      " (no print service — standalone mode)");
+                        }
                     };
                 }
                 
@@ -408,7 +428,6 @@ namespace PocoRender.UI.Modules
             plusBtn.GetComponent<Button>().onClick.AddListener(() => AddNewCanvas(null));
             
             SwitchToHome();
-            manager.uvPrintLayout = layout;
             layout.Hide();
 
             // If external callback was provided (e.g. from tests), we can hook it, but here we define the logic.
@@ -618,10 +637,9 @@ namespace PocoRender.UI.Modules
             GameObject gridFloor = GameObject.CreatePrimitive(PrimitiveType.Plane);
             gridFloor.name = "GridFloor";
             gridFloor.transform.SetParent(parent.transform);
-            gridFloor.transform.localScale = new Vector3(50, 1, 50); // Much larger for "infinite" feel
+            gridFloor.transform.localScale = new Vector3(50, 1, 50);
             gridFloor.transform.localPosition = Vector3.zero;
 
-            // Generate Grid Texture
             Texture2D gridTex = new Texture2D(64, 64);
             for (int y = 0; y < 64; y++) {
                 for (int x = 0; x < 64; x++) {
@@ -632,11 +650,14 @@ namespace PocoRender.UI.Modules
             gridTex.wrapMode = TextureWrapMode.Repeat;
             gridTex.Apply();
 
-            Material gridMat = new Material(Shader.Find("Standard"));
+            // Shader.Find("Standard") returns null in builds if not referenced by any material in the project.
+            // Use the primitive's existing material as a base (always available).
+            Renderer rend = gridFloor.GetComponent<Renderer>();
+            Material gridMat = rend.material; // copy of default-diffuse
             gridMat.mainTexture = gridTex;
-            gridMat.mainTextureScale = new Vector2(400, 400); // USER REQ: Even finer grid to match reference
-            gridMat.SetFloat("_Glossiness", 0f);
-            gridFloor.GetComponent<Renderer>().material = gridMat;
+            gridMat.mainTextureScale = new Vector2(400, 400);
+            if (gridMat.HasProperty("_Glossiness"))
+                gridMat.SetFloat("_Glossiness", 0f);
         }
 
         private void SyncPreviewLayers(GameObject canvasView)
@@ -733,9 +754,10 @@ namespace PocoRender.UI.Modules
             paperPlane.transform.localPosition = new Vector3(0, 0.01f, 0); // Base level
             paperPlane.transform.localRotation = Quaternion.Euler(90, 0, 0); 
             
-            Material paperMat = new Material(Shader.Find("UI/Default")); 
+            Shader uiShader = SafeShaderHelper.GetUIDefaultShader();
+            Material paperMat = uiShader != null ? new Material(uiShader) : paperPlane.GetComponent<Renderer>().material;
+            paperMat.color = Color.white;
             paperPlane.GetComponent<Renderer>().material = paperMat;
-            paperPlane.GetComponent<Renderer>().material.color = Color.white;
 
             // 3. World Space Canvas
             GameObject worldCanvasObj = new GameObject("WorldCanvas");
@@ -827,6 +849,63 @@ namespace PocoRender.UI.Modules
             RenderSettings.ambientSkyColor = new Color(0.3f, 0.3f, 0.3f, 1f);
             RenderSettings.ambientEquatorColor = new Color(0.25f, 0.25f, 0.25f, 1f);
             RenderSettings.ambientGroundColor = new Color(0.2f, 0.2f, 0.2f, 1f);
+        }
+
+        private void SendCanvasToPrint(CanvasController controller, string projectName)
+        {
+            if (controller == null || controller.paper == null) return;
+
+            if (!PrintClient.Instance.IsConnected)
+            {
+                PrintClient.Instance.Connect("127.0.0.1", BuildMode.PrintServicePort);
+            }
+
+            if (!PrintClient.Instance.IsConnected)
+            {
+                Debug.LogWarning("[HomeModule] Cannot connect to PocoStudio print service");
+                return;
+            }
+
+            int w = Mathf.RoundToInt(controller.paper.sizeDelta.x);
+            int h = Mathf.RoundToInt(controller.paper.sizeDelta.y);
+
+            try
+            {
+                string tempPath = System.IO.Path.Combine(
+                    Application.temporaryCachePath,
+                    "print_" + System.DateTime.Now.Ticks + ".png");
+
+                var cam = Camera.main;
+                if (cam != null)
+                {
+                    var rt = new RenderTexture(w, h, 24);
+                    cam.targetTexture = rt;
+                    cam.Render();
+                    RenderTexture.active = rt;
+                    var tex = new Texture2D(w, h, TextureFormat.RGBA32, false);
+                    tex.ReadPixels(new Rect(0, 0, w, h), 0, 0);
+                    tex.Apply();
+                    cam.targetTexture = null;
+                    RenderTexture.active = null;
+
+                    byte[] png = tex.EncodeToPNG();
+                    Object.Destroy(tex);
+                    Object.Destroy(rt);
+
+                    bool sent = PrintClient.Instance.SendPrintRequestWithData(
+                        projectName, png, w, h, 300, 1);
+                    Debug.Log($"[HomeModule] Print request sent: {sent} ({png.Length} bytes)");
+                }
+                else
+                {
+                    PrintClient.Instance.SendPrintRequest(projectName, "", w, h, 300, 1);
+                    Debug.Log("[HomeModule] Print request sent (no camera for capture)");
+                }
+            }
+            catch (System.Exception ex)
+            {
+                Debug.LogError($"[HomeModule] Print export failed: {ex.Message}");
+            }
         }
 
         private void SetLayerRecursive(GameObject obj, int layer)

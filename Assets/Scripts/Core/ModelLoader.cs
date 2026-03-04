@@ -1,4 +1,4 @@
-﻿using UnityEngine;
+using UnityEngine;
 using System.Collections;
 using System.IO;
 using System.Threading.Tasks;
@@ -8,6 +8,7 @@ using System.Text;
 using System.Linq;
 using System.IO.Compression;
 using System.Xml;
+using PocoRender.Utils;
 
 namespace PocoRender.Core
 {
@@ -571,10 +572,11 @@ namespace PocoRender.Core
             meshFilter.mesh = mesh;
 
             // 创建默认材质
-            Material material = new Material(Shader.Find("Standard"));
+            Material material = SafeShaderHelper.CreateStandardMaterial();
+            if (material == null) material = new Material(Shader.Find("Sprites/Default"));
             material.color = new Color(0.9f, 0.9f, 0.95f, 1f);
-            material.SetFloat("_Metallic", 0.2f);
-            material.SetFloat("_Glossiness", 0.6f);
+            if (material.HasProperty("_Metallic")) material.SetFloat("_Metallic", 0.2f);
+            if (material.HasProperty("_Glossiness")) material.SetFloat("_Glossiness", 0.6f);
             
             // 使用单面渲染（默认），保持正确的面朝向
             // 如果需要看到背面，可以取消注释下面这行
