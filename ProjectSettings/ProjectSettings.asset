@@ -650,7 +650,12 @@ PlayerSettings:
   webGLMemoryGeometricGrowthStep: 0.2
   webGLMemoryGeometricGrowthCap: 96
   webGLPowerPreference: 2
-  scriptingDefineSymbols: {}
+  scriptingDefineSymbols:
+    Android: HAS_SENTIS
+    Standalone: HAS_SENTIS
+    WebGL: HAS_SENTIS
+    Windows Store Apps: HAS_SENTIS
+    iPhone: HAS_SENTIS
   additionalCompilerArguments: {}
   platformArchitecture: {}
   scriptingBackend: {}

@@ -1,0 +1,290 @@
+using System;
+using UnityEngine;
+using PocoRender.UI;
+
+namespace PocoRender.Communication
+{
+    /// <summary>
+    /// Parses incoming QtCommand JSON messages and dispatches them to the
+    /// appropriate Unity subsystem (CanvasController, etc.).
+    ///
+    /// Wire format: the same length-prefixed JSON used by
+    /// <see cref="CommandReceiver"/> / <see cref="EventSender"/>.
+    ///
+    /// JSON schema example:
+    /// <code>{ "command": "undo" }</code>
+    /// <code>{ "command": "new_project", "project_name": "My Art", "canvas_width": 600, "canvas_height": 600 }</code>
+    /// </summary>
+    public class CommandDispatcher
+    {
+        private CanvasController _canvas;
+        private string _currentProjectName = "";
+        private bool _isModified;
+
+        public void Dispatch(string json, EventSender sender)
+        {
+            EnsureCanvas();
+
+            var msg = JsonUtility.FromJson<QtCommandMessage>(json);
+            if (msg == null || string.IsNullOrEmpty(msg.command))
+            {
+                Debug.LogWarning($"[CommandDispatcher] Unknown message: {json}");
+                return;
+            }
+
+            switch (msg.command)
+            {
+                case "undo":
+                    _canvas?.Undo();
+                    SendAck(sender, "undo", true);
+                    break;
+
+                case "redo":
+                    _canvas?.Redo();
+                    SendAck(sender, "redo", true);
+                    break;
+
+                case "new_project":
+                    HandleNewProject(msg);
+                    SendAck(sender, "new_project", true);
+                    break;
+
+                case "open_project":
+                    HandleOpenProject(msg);
+                    SendAck(sender, "open_project", true);
+                    break;
+
+                case "save_project":
+                    HandleSaveProject(msg, sender);
+                    break;
+
+                case "close_project":
+                    HandleCloseProject(msg);
+                    SendAck(sender, "close_project", true);
+                    break;
+
+                case "set_view_mode":
+                    HandleSetViewMode(msg);
+                    SendAck(sender, "set_view_mode", true);
+                    break;
+
+                case "export":
+                    HandleExport(msg, sender);
+                    break;
+
+                case "shutdown":
+                    Debug.Log("[CommandDispatcher] Shutdown requested by Qt host");
+                    SendAck(sender, "shutdown", true);
+                    sender.FlushPending();
+                    Application.Quit();
+                    break;
+
+                case "ping":
+                    SendAck(sender, "pong", true);
+                    break;
+
+                default:
+                    Debug.LogWarning($"[CommandDispatcher] Unrecognized command: {msg.command}");
+                    SendAck(sender, msg.command, false, "unrecognized command");
+                    break;
+            }
+        }
+
+        private void EnsureCanvas()
+        {
+            if (_canvas != null) return;
+            _canvas = UnityEngine.Object.FindObjectOfType<CanvasController>();
+        }
+
+        private void HandleNewProject(QtCommandMessage msg)
+        {
+            EnsureCanvas();
+            Debug.Log($"[CommandDispatcher] NewProject: {msg.project_name} " +
+                      $"{msg.canvas_width}x{msg.canvas_height}");
+
+            if (_canvas == null) return;
+
+            _currentProjectName = msg.project_name ?? "Untitled";
+
+            var paper = _canvas.paper;
+            if (paper != null)
+            {
+                float w = msg.canvas_width > 0 ? msg.canvas_width : 600;
+                float h = msg.canvas_height > 0 ? msg.canvas_height : 600;
+                paper.sizeDelta = new Vector2(w, h);
+
+                for (int i = paper.childCount - 1; i >= 0; i--)
+                {
+                    var child = paper.GetChild(i);
+                    if (child.name == "BGDeselector") continue;
+                    UnityEngine.Object.Destroy(child.gameObject);
+                }
+            }
+
+            _isModified = false;
+        }
+
+        private void HandleOpenProject(QtCommandMessage msg)
+        {
+            EnsureCanvas();
+            Debug.Log($"[CommandDispatcher] OpenProject: {msg.project_path}");
+
+            if (!string.IsNullOrEmpty(msg.project_data))
+            {
+                try
+                {
+                    string json = System.Text.Encoding.UTF8.GetString(
+                        System.Convert.FromBase64String(msg.project_data));
+                    var project = ProjectSerializer.Deserialize(json);
+                    if (project != null && _canvas != null && _canvas.paper != null)
+                    {
+                        ProjectSerializer.ApplyToCanvas(project, _canvas.paper);
+                        _currentProjectName = project.project_name;
+                        _isModified = false;
+                    }
+                }
+                catch (System.Exception ex)
+                {
+                    Debug.LogError($"[CommandDispatcher] OpenProject deserialization failed: {ex.Message}");
+                }
+            }
+        }
+
+        private void HandleSaveProject(QtCommandMessage msg, EventSender sender)
+        {
+            EnsureCanvas();
+            Debug.Log($"[CommandDispatcher] SaveProject: {msg.save_path} saveAs={msg.save_as}");
+
+            string projectJson = "";
+            int dataSize = 0;
+            string checksum = "";
+
+            if (_canvas != null && _canvas.paper != null)
+            {
+                projectJson = ProjectSerializer.Serialize(
+                    _canvas.paper,
+                    _currentProjectName,
+                    _canvas.paper.sizeDelta.x,
+                    _canvas.paper.sizeDelta.y);
+
+                byte[] data = System.Text.Encoding.UTF8.GetBytes(projectJson);
+                dataSize = data.Length;
+                using (var md5 = System.Security.Cryptography.MD5.Create())
+                {
+                    byte[] hash = md5.ComputeHash(data);
+                    checksum = System.BitConverter.ToString(hash).Replace("-", "").ToLowerInvariant();
+                }
+
+                _isModified = false;
+            }
+
+            string response = JsonUtility.ToJson(new ProjectDataReadyPayload
+            {
+                type = "project_data_ready",
+                save_path = msg.save_path ?? "",
+                data_size = dataSize,
+                checksum = checksum,
+                project_data_b64 = System.Convert.ToBase64String(
+                    System.Text.Encoding.UTF8.GetBytes(projectJson))
+            });
+            sender?.QueueEvent(response);
+        }
+
+        private void HandleCloseProject(QtCommandMessage msg)
+        {
+            EnsureCanvas();
+            Debug.Log($"[CommandDispatcher] CloseProject force={msg.force}");
+
+            if (_canvas != null && _canvas.paper != null)
+            {
+                for (int i = _canvas.paper.childCount - 1; i >= 0; i--)
+                {
+                    var child = _canvas.paper.GetChild(i);
+                    if (child.name == "BGDeselector") continue;
+                    UnityEngine.Object.Destroy(child.gameObject);
+                }
+            }
+            _currentProjectName = "";
+            _isModified = false;
+        }
+
+        private void HandleSetViewMode(QtCommandMessage msg)
+        {
+            Debug.Log($"[CommandDispatcher] SetViewMode: {msg.view_mode}");
+            var uiMgr = UnityEngine.Object.FindObjectOfType<PocoRenderStudioUIManager>();
+            if (uiMgr == null) return;
+
+            switch (msg.view_mode)
+            {
+                case "home":
+                    uiMgr.ShowSelectionDialog();
+                    break;
+                case "canvas":
+                    uiMgr.SetCurrentMode(PocoRender.Core.PrintMode.UVPrint);
+                    break;
+                case "preview_3d":
+                    uiMgr.SetCurrentMode(PocoRender.Core.PrintMode.Print3D);
+                    break;
+            }
+        }
+
+        private void HandleExport(QtCommandMessage msg, EventSender sender)
+        {
+            EnsureCanvas();
+            Debug.Log($"[CommandDispatcher] Export: {msg.output_path} fmt={msg.format} dpi={msg.dpi}");
+            SendAck(sender, "export", true);
+        }
+
+        private void SendAck(EventSender sender, string command, bool success,
+                              string error = null)
+        {
+            if (sender == null) return;
+            string json = JsonUtility.ToJson(new AckPayload
+            {
+                type = "command_ack",
+                command = command,
+                success = success,
+                error = error ?? ""
+            });
+            sender.QueueEvent(json);
+        }
+
+        [Serializable]
+        private class QtCommandMessage
+        {
+            public string command;
+            public string project_name;
+            public int canvas_width;
+            public int canvas_height;
+            public string template_id;
+            public string project_path;
+            public string project_data;
+            public string save_path;
+            public bool save_as;
+            public bool force;
+            public string view_mode;
+            public string output_path;
+            public string format;
+            public int dpi;
+        }
+
+        [Serializable]
+        private struct AckPayload
+        {
+            public string type;
+            public string command;
+            public bool success;
+            public string error;
+        }
+
+        [Serializable]
+        private struct ProjectDataReadyPayload
+        {
+            public string type;
+            public string save_path;
+            public int data_size;
+            public string checksum;
+            public string project_data_b64;
+        }
+    }
+}

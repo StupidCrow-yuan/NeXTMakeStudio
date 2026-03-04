@@ -1,5 +1,7 @@
-﻿using UnityEngine;
+using UnityEngine;
 using UnityEngine.EventSystems;
+using PocoRender.Core;
+using PocoRender.Communication;
 using PocoRender.UI.Core;
 
 namespace PocoRender.UI
@@ -7,6 +9,9 @@ namespace PocoRender.UI
     /// <summary>
     /// Ensures PocoRender Studio UI is built when entering play mode, even if the scene
     /// doesn't already contain a PocoRenderStudioUIAutoSetup GameObject.
+    ///
+    /// In embedded mode, also attaches <see cref="QtBridgeController"/> so that
+    /// the IPC layer is active before any UI is constructed.
     /// </summary>
     public static class PocoRenderStudioBootstrap
     {
@@ -36,6 +41,15 @@ namespace PocoRender.UI
             auto.replaceOldUI = true;
 
             auto.SetupPocoRenderStudioUI();
+
+            // In embedded mode, attach the IPC bridge controller.
+            if (BuildMode.IsEmbeddedMode)
+            {
+                var bridgeGo = new GameObject("QtBridgeController");
+                Object.DontDestroyOnLoad(bridgeGo);
+                bridgeGo.AddComponent<QtBridgeController>();
+                Debug.Log("[Bootstrap] QtBridgeController created for embedded mode");
+            }
         }
     }
 }
