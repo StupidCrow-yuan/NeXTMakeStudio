@@ -826,9 +826,7 @@ namespace PocoRender.UI.Modules
             if (controller == null || controller.paper == null) return;
 
             if (!PrintClient.Instance.IsConnected)
-            {
                 PrintClient.Instance.Connect("127.0.0.1", BuildMode.PrintServicePort);
-            }
 
             if (!PrintClient.Instance.IsConnected)
             {
@@ -836,41 +834,23 @@ namespace PocoRender.UI.Modules
                 return;
             }
 
-            int w = Mathf.RoundToInt(controller.paper.sizeDelta.x);
-            int h = Mathf.RoundToInt(controller.paper.sizeDelta.y);
-
             try
             {
-                string tempPath = System.IO.Path.Combine(
-                    Application.temporaryCachePath,
-                    "print_" + System.DateTime.Now.Ticks + ".png");
-
-                var cam = Camera.main;
-                if (cam != null)
+                Texture2D composite = CapturePaperFlat(controller.paper);
+                if (composite == null)
                 {
-                    var rt = new RenderTexture(w, h, 24);
-                    cam.targetTexture = rt;
-                    cam.Render();
-                    RenderTexture.active = rt;
-                    var tex = new Texture2D(w, h, TextureFormat.RGBA32, false);
-                    tex.ReadPixels(new Rect(0, 0, w, h), 0, 0);
-                    tex.Apply();
-                    cam.targetTexture = null;
-                    RenderTexture.active = null;
-
-                    byte[] png = tex.EncodeToPNG();
-                    Object.Destroy(tex);
-                    Object.Destroy(rt);
-
-                    bool sent = PrintClient.Instance.SendPrintRequestWithData(
-                        projectName, png, w, h, 300, 1);
-                    Debug.Log($"[HomeModule] Print request sent: {sent} ({png.Length} bytes)");
+                    Debug.LogError("[HomeModule] Paper capture returned null");
+                    return;
                 }
-                else
-                {
-                    PrintClient.Instance.SendPrintRequest(projectName, "", w, h, 300, 1);
-                    Debug.Log("[HomeModule] Print request sent (no camera for capture)");
-                }
+
+                byte[] png = composite.EncodeToPNG();
+                int w = composite.width;
+                int h = composite.height;
+                Object.Destroy(composite);
+
+                bool sent = PrintClient.Instance.SendPrintRequestWithData(
+                    projectName, png, w, h, 300, 1);
+                Debug.Log($"[HomeModule] Print sent: {sent}  {w}x{h}  {png.Length} bytes");
             }
             catch (System.Exception ex)
             {
@@ -878,14 +858,108 @@ namespace PocoRender.UI.Modules
             }
         }
 
-        private void SetLayerRecursive(GameObject obj, int layer)
+        /// <summary>
+        /// Render the paper and ALL its child layers to a flat 2D Texture2D by
+        /// cloning the paper hierarchy into a temporary ScreenSpaceCamera canvas
+        /// that targets a RenderTexture. This captures every visible layer as a
+        /// properly composited flat image (not a 3D perspective view).
+        /// </summary>
+        private static Texture2D CapturePaperFlat(RectTransform paper)
+        {
+            // Use 2x the UI size for sharper output (can be tuned)
+            int outputWidth  = Mathf.RoundToInt(paper.rect.width)  * 2;
+            int outputHeight = Mathf.RoundToInt(paper.rect.height) * 2;
+            if (outputWidth <= 0 || outputHeight <= 0) return null;
+
+            const int captureLayer = 31; // unused layer for isolation
+
+            // 1. Temporary Camera (orthographic, white background)
+            GameObject camObj = new GameObject("_CaptureCam");
+            Camera cam = camObj.AddComponent<Camera>();
+            cam.orthographic     = true;
+            cam.orthographicSize = outputHeight / 2f;
+            cam.clearFlags       = CameraClearFlags.SolidColor;
+            cam.backgroundColor  = Color.white;
+            cam.cullingMask      = 1 << captureLayer;
+            cam.enabled          = false; // manual render only
+
+            // 2. Temporary Canvas (ScreenSpaceCamera → renders to camera's RT)
+            GameObject canvasObj = new GameObject("_CaptureCanvas");
+            Canvas canvas       = canvasObj.AddComponent<Canvas>();
+            canvas.renderMode   = RenderMode.ScreenSpaceCamera;
+            canvas.worldCamera  = cam;
+            CanvasScaler scaler = canvasObj.AddComponent<CanvasScaler>();
+            scaler.uiScaleMode  = CanvasScaler.ScaleMode.ConstantPixelSize;
+            canvasObj.AddComponent<UnityEngine.UI.GraphicRaycaster>();
+            canvasObj.layer = captureLayer;
+
+            // 3. Clone the paper into the temp canvas
+            GameObject clone = Object.Instantiate(paper.gameObject, canvas.transform);
+            SetLayerRecursiveStatic(clone, captureLayer);
+
+            // Disable any scripts that would interfere during the capture frame
+            foreach (var mb in clone.GetComponentsInChildren<MonoBehaviour>(true))
+            {
+                if (mb is UnityEngine.UI.Image || mb is UnityEngine.UI.RawImage ||
+                    mb is UnityEngine.UI.Graphic || mb is CanvasRenderer ||
+                    mb is RectTransform || mb is CanvasGroup)
+                    continue;
+                mb.enabled = false;
+            }
+
+            // Reset transform so the clone fills the canvas correctly
+            RectTransform cloneRT  = clone.GetComponent<RectTransform>();
+            cloneRT.anchorMin      = new Vector2(0.5f, 0.5f);
+            cloneRT.anchorMax      = new Vector2(0.5f, 0.5f);
+            cloneRT.pivot          = new Vector2(0.5f, 0.5f);
+            cloneRT.anchoredPosition = Vector2.zero;
+            cloneRT.localScale     = Vector3.one;
+            cloneRT.localRotation  = Quaternion.identity;
+            cloneRT.sizeDelta      = new Vector2(outputWidth, outputHeight);
+
+            // Scale children proportionally
+            float scaleX = (float)outputWidth  / paper.rect.width;
+            float scaleY = (float)outputHeight / paper.rect.height;
+            for (int i = 0; i < cloneRT.childCount; i++)
+            {
+                RectTransform childRT = cloneRT.GetChild(i) as RectTransform;
+                if (childRT == null) continue;
+                childRT.anchoredPosition *= new Vector2(scaleX, scaleY);
+                childRT.sizeDelta        *= new Vector2(scaleX, scaleY);
+            }
+
+            Canvas.ForceUpdateCanvases();
+
+            // 4. Render to RenderTexture
+            RenderTexture rt = new RenderTexture(outputWidth, outputHeight, 24, RenderTextureFormat.ARGB32);
+            cam.targetTexture = rt;
+            cam.Render();
+
+            // 5. Read pixels
+            RenderTexture.active = rt;
+            Texture2D tex = new Texture2D(outputWidth, outputHeight, TextureFormat.RGBA32, false);
+            tex.ReadPixels(new Rect(0, 0, outputWidth, outputHeight), 0, 0);
+            tex.Apply();
+
+            // 6. Cleanup
+            RenderTexture.active = null;
+            cam.targetTexture    = null;
+            Object.DestroyImmediate(clone);
+            Object.DestroyImmediate(canvasObj);
+            Object.DestroyImmediate(camObj);
+            Object.DestroyImmediate(rt);
+
+            return tex;
+        }
+
+        private static void SetLayerRecursiveStatic(GameObject obj, int layer)
         {
             obj.layer = layer;
             foreach (Transform child in obj.transform)
-            {
-                SetLayerRecursive(child.gameObject, layer);
-            }
+                SetLayerRecursiveStatic(child.gameObject, layer);
         }
+
+    
     }
 }
 
