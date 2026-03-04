@@ -78,6 +78,12 @@ namespace PocoRender.UI
 
         private CommandHistory commandHistory = new CommandHistory();
 
+        /// <summary>
+        /// 当前选中的图层对象（为 null 表示未选中任何单独图层，此时视为“整张画布”）。
+        /// 仅提供只读访问，外部（例如 HomeModule）可据此决定打印行为。
+        /// </summary>
+        public GameObject CurrentSelection => currentSelection;
+
         public void Undo()
         {
             commandHistory.Undo();

@@ -782,7 +782,7 @@ namespace PocoRender.UI.Modules
                                     depthOverride = ld.customDepthMap;
                                 }
                                 var quad = PreviewMeshBuilder.BuildImageLayerQuad(img, rt, meshRoot.transform, zUi, texMode, depthOverride, 512);
-                                if (quad != null) SetLayerRecursive(quad, viewer.gameObject.layer);
+                                if (quad != null) SetLayerRecursiveStatic(quad, viewer.gameObject.layer);
                             }
                             else
                             {
@@ -798,7 +798,7 @@ namespace PocoRender.UI.Modules
                                 Transform rotHandle = copy.transform.Find("RotationHandle");
                                 if (rotHandle != null) Object.Destroy(rotHandle.gameObject);
 
-                                SetLayerRecursive(copy, viewer.gameObject.layer);
+                                SetLayerRecursiveStatic(copy, viewer.gameObject.layer);
                             }
 
                             zUi += 4f; // ~0.04 units after 0.01 scale
@@ -836,7 +836,49 @@ namespace PocoRender.UI.Modules
 
             try
             {
-                Texture2D composite = CapturePaperFlat(controller.paper);
+                // USER REQ:
+                // - 如果当前选中了某个图层，仅打印该图层（不包含其它图层和旋转手柄等控件）。
+                // - 如果当前未选中任何单独图层（即点击在画布空白处），则打印所有可见图层的混合结果。
+                Texture2D composite = null;
+
+                var selected = controller.CurrentSelection;
+                bool hasSingleSelection =
+                    selected != null &&
+                    controller.paper != null &&
+                    // 必须是真正在画布上的可编辑图层（带 ObjectManipulator），
+                    // 而不是 BGDeselector、背景节点或其它辅助控件
+                    selected.transform.IsChildOf(controller.paper) &&
+                    selected.name != "BGDeselector" &&
+                    selected.GetComponent<ObjectManipulator>() != null;
+
+                if (hasSingleSelection)
+                {
+                    // 构造一个临时的“虚拟画布”，尺寸与原始 paper 相同，但只包含当前选中的图层。
+                    // 这样可以在不影响场景的前提下，让 CapturePaperFlat 只渲染该图层。
+                    GameObject tempPaper = new GameObject("_TempPaperForPrint");
+                    RectTransform tempRt = tempPaper.AddComponent<RectTransform>();
+
+                    // 保持与原始 paper 一致的尺寸，锚点居中即可。
+                    tempRt.sizeDelta = controller.paper.rect.size;
+                    tempRt.pivot = controller.paper.pivot;
+                    tempRt.anchorMin = new Vector2(0.5f, 0.5f);
+                    tempRt.anchorMax = new Vector2(0.5f, 0.5f);
+                    tempRt.anchoredPosition = Vector2.zero;
+
+                    // 在临时画布下克隆当前选中的图层（包含其内部所有可见子节点）。
+                    GameObject singleLayerClone = Object.Instantiate(selected, tempPaper.transform);
+                    singleLayerClone.SetActive(true);
+
+                    composite = CapturePaperFlat(tempRt);
+
+                    Object.DestroyImmediate(tempPaper);
+                }
+                else
+                {
+                    // 未选中具体图层时，视为“整张画布”打印：渲染 paper 下所有可见子节点。
+                    composite = CapturePaperFlat(controller.paper);
+                }
+
                 if (composite == null)
                 {
                     Debug.LogError("[HomeModule] Paper capture returned null");
@@ -905,6 +947,16 @@ namespace PocoRender.UI.Modules
                     mb is RectTransform || mb is CanvasGroup)
                     continue;
                 mb.enabled = false;
+            }
+
+            // 移除旋转手柄图标，避免在导出的打印图中看到编辑控制点
+            var rotationHandlers = clone.GetComponentsInChildren<RotationHandler>(true);
+            foreach (var handler in rotationHandlers)
+            {
+                if (handler != null)
+                {
+                    Object.DestroyImmediate(handler.gameObject);
+                }
             }
 
             // Reset transform so the clone fills the canvas correctly
