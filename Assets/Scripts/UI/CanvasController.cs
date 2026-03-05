@@ -4,6 +4,8 @@ using PocoRender.UI.Core;
 using System.Collections.Generic;
 using PocoRender.UI.TextureEffects;
 using PocoRender.Utils;
+using System.IO;
+using PocoRender.Communication;
 
 namespace PocoRender.UI
 {
@@ -38,7 +40,7 @@ namespace PocoRender.UI
         public void ShowInfoPopup(string title)
         {
             if (activePopup != null) Destroy(activePopup);
-            activePopup = Modules.CanvasModule.CreateModalPopup(editorArea, title);
+            activePopup = Modules.CanvasModule.CreateInfoPopup(editorArea, title);
         }
 
         public void ShowColorPicker()
@@ -77,6 +79,9 @@ namespace PocoRender.UI
         public Text zoomText;
         public Dropdown zoomDropdown;
         
+        [Header("Upload Panel")]
+        public GameObject uploadListContainer;
+        
         private GameObject currentSelection;
         private GameObject rotationHandle;
         private Outline currentOutline;
@@ -90,6 +95,13 @@ namespace PocoRender.UI
         private bool handToolActive = false;
 
         private CommandHistory commandHistory = new CommandHistory();
+        private static readonly HashSet<string> SupportedUploadExtensions = new HashSet<string>(System.StringComparer.OrdinalIgnoreCase)
+        {
+            ".pdf", ".png", ".jpg", ".jpeg", ".gif", ".bmp", ".tif", ".tiff", ".webp", ".svg"
+        };
+        private static readonly string UploadSupportedFormatsText = "PDF, PNG, JPEG, GIF, BMP, TIFF, WEBP, SVG";
+        private readonly Dictionary<string, string> pendingUploadRequestById = new Dictionary<string, string>();
+        private QtBridgeController qtBridgeController;
 
         /// <summary>
         /// 当前选中的图层对象（为 null 表示未选中任何单独图层，此时视为“整张画布”）。
@@ -613,6 +625,206 @@ namespace PocoRender.UI
             #endif
         }
 
+        public static string GetUploadSupportedFormatsText()
+        {
+            return UploadSupportedFormatsText;
+        }
+
+        private static readonly HashSet<string> UnityNativeImageExtensions =
+            new HashSet<string>(System.StringComparer.OrdinalIgnoreCase)
+            { ".png", ".jpg", ".jpeg", ".gif", ".bmp" };
+
+        public void OnUploadCanvasAsset()
+        {
+#if UNITY_EDITOR
+            string path = UnityEditor.EditorUtility.OpenFilePanel(
+                "Upload Asset",
+                "",
+                "pdf,png,jpg,jpeg,gif,bmp,tif,tiff,webp,svg");
+            if (string.IsNullOrEmpty(path))
+            {
+                return;
+            }
+
+            string extension = Path.GetExtension(path);
+            if (string.IsNullOrEmpty(extension) || !SupportedUploadExtensions.Contains(extension))
+            {
+                ShowInfoPopup("Unsupported file type. Supported: " + UploadSupportedFormatsText);
+                return;
+            }
+
+            QtBridgeController bridge = GetQtBridgeController();
+            if (bridge != null && bridge.IsConnected)
+            {
+                bridge.OnConvertToPngResult -= OnQtConvertToPngResult;
+                bridge.OnConvertToPngResult += OnQtConvertToPngResult;
+
+                string requestId = System.Guid.NewGuid().ToString("N");
+                pendingUploadRequestById[requestId] = path;
+                bridge.SendConvertToPngRequest(requestId, path);
+                return;
+            }
+
+            if (UnityNativeImageExtensions.Contains(extension))
+            {
+                LoadImageLocally(path);
+                return;
+            }
+
+            Debug.LogWarning("[Upload] Qt bridge unavailable – cannot convert " + extension);
+#else
+            Debug.LogWarning("[Upload] Upload is only available in editor mode.");
+#endif
+        }
+
+        private void LoadImageLocally(string filePath)
+        {
+            if (!TryLoadPngTextureFromFile(filePath, out Texture2D tex, out string err))
+            {
+                ShowInfoPopup(err);
+                return;
+            }
+            AddUploadedListItem(filePath, tex);
+            AddTextureToCanvas(filePath, tex);
+        }
+
+        private bool TryLoadPngTextureFromFile(string pngPath, out Texture2D outputTexture, out string error)
+        {
+            outputTexture = null;
+            error = null;
+
+            if (string.IsNullOrEmpty(pngPath) || !File.Exists(pngPath))
+            {
+                error = "Converted PNG file not found.";
+                return false;
+            }
+
+            byte[] pngBytes;
+            try
+            {
+                pngBytes = File.ReadAllBytes(pngPath);
+            }
+            catch (System.Exception ex)
+            {
+                error = "Failed to read file: " + ex.Message;
+                return false;
+            }
+
+            Texture2D pngTexture = new Texture2D(2, 2, TextureFormat.RGBA32, false, true);
+            if (!pngTexture.LoadImage(pngBytes))
+            {
+                Destroy(pngTexture);
+                error = "Failed to load converted PNG.";
+                return false;
+            }
+
+            outputTexture = pngTexture;
+            return true;
+        }
+
+        private void AddUploadedListItem(string originalPath, Texture2D texture)
+        {
+            if (uploadListContainer == null || texture == null)
+            {
+                return;
+            }
+            var emptyHint = uploadListContainer.transform.Find("UploadEmptyHint");
+            if (emptyHint != null) Destroy(emptyHint.gameObject);
+
+            GameObject item = UIFactory.CreateObject("UploadItem", uploadListContainer);
+            item.AddComponent<LayoutElement>().minHeight = 72;
+            HorizontalLayoutGroup hlg = item.AddComponent<HorizontalLayoutGroup>();
+            hlg.spacing = 8;
+            hlg.padding = new RectOffset(6, 6, 6, 6);
+            hlg.childAlignment = TextAnchor.MiddleLeft;
+            hlg.childControlWidth = false;
+            hlg.childControlHeight = false;
+
+            GameObject thumb = UIFactory.CreateObject("Thumb", item);
+            thumb.AddComponent<LayoutElement>().minWidth = 60;
+            thumb.GetComponent<LayoutElement>().minHeight = 60;
+            Image thumbImage = thumb.AddComponent<Image>();
+            thumbImage.preserveAspect = true;
+            thumbImage.sprite = Sprite.Create(texture, new Rect(0, 0, texture.width, texture.height), new Vector2(0.5f, 0.5f));
+
+            GameObject info = UIFactory.CreateObject("Info", item);
+            VerticalLayoutGroup ivlg = info.AddComponent<VerticalLayoutGroup>();
+            ivlg.spacing = 2;
+            ivlg.childAlignment = TextAnchor.MiddleLeft;
+            info.AddComponent<LayoutElement>().minWidth = 180;
+
+            string fileName = Path.GetFileName(originalPath);
+            string ext = Path.GetExtension(originalPath);
+            UIFactory.CreateText(fileName, info, 11, Color.black, Vector2.zero, Vector2.zero, TextAnchor.MiddleLeft, FontStyle.Bold);
+            UIFactory.CreateText($"{texture.width}x{texture.height}  ({ext.ToUpperInvariant()})", info, 10, Color.gray, Vector2.zero, Vector2.zero, TextAnchor.MiddleLeft, FontStyle.Normal);
+        }
+
+        private void AddTextureToCanvas(string originalPath, Texture2D texture)
+        {
+            if (paper == null || texture == null)
+            {
+                return;
+            }
+
+            GameObject addedImg = UIFactory.CreateObject("Uploaded_" + Path.GetFileNameWithoutExtension(originalPath), paper.gameObject);
+            RectTransform rt = addedImg.GetComponent<RectTransform>();
+            Image image = addedImg.AddComponent<Image>();
+            image.sprite = Sprite.Create(texture, new Rect(0, 0, texture.width, texture.height), new Vector2(0.5f, 0.5f));
+            image.preserveAspect = true;
+
+            float maxSide = 260f;
+            float srcW = texture.width;
+            float srcH = texture.height;
+            if (srcW <= 0 || srcH <= 0)
+            {
+                srcW = 200f;
+                srcH = 200f;
+            }
+
+            float scale = Mathf.Min(maxSide / srcW, maxSide / srcH);
+            if (scale > 1f) scale = 1f;
+            rt.sizeDelta = new Vector2(srcW * scale, srcH * scale);
+            rt.anchoredPosition = Vector2.zero;
+
+            Modules.CanvasWorkspaceBuilder.AddManipulationComponents(addedImg);
+            RecordAdd(addedImg);
+            SelectObject(addedImg);
+        }
+
+        private QtBridgeController GetQtBridgeController()
+        {
+            if (qtBridgeController == null)
+            {
+                qtBridgeController = UnityEngine.Object.FindObjectOfType<QtBridgeController>();
+            }
+            return qtBridgeController;
+        }
+
+        private void OnQtConvertToPngResult(string requestId, bool success, string outputPngPath, string error)
+        {
+            if (string.IsNullOrEmpty(requestId)) return;
+            if (!pendingUploadRequestById.TryGetValue(requestId, out string originalPath))
+            {
+                return;
+            }
+            pendingUploadRequestById.Remove(requestId);
+
+            if (!success)
+            {
+                ShowInfoPopup(string.IsNullOrEmpty(error) ? "Convert failed." : error);
+                return;
+            }
+
+            if (!TryLoadPngTextureFromFile(outputPngPath, out Texture2D pngTexture, out string loadError))
+            {
+                ShowInfoPopup(loadError);
+                return;
+            }
+
+            AddUploadedListItem(originalPath, pngTexture);
+            AddTextureToCanvas(originalPath, pngTexture);
+        }
+
         public void ChangeMiniZoom(float delta)
         {
             currentMiniZoom = Mathf.Clamp(currentMiniZoom + delta, 0.1f, 10f);
@@ -995,6 +1207,13 @@ namespace PocoRender.UI
 
         void OnEnable()
         {
+            QtBridgeController bridge = GetQtBridgeController();
+            if (bridge != null)
+            {
+                bridge.OnConvertToPngResult -= OnQtConvertToPngResult;
+                bridge.OnConvertToPngResult += OnQtConvertToPngResult;
+            }
+
             // USER REQ: Re-initialize mini preview when returning to editor
             if (currentSelection != null)
             {
@@ -1028,6 +1247,13 @@ namespace PocoRender.UI
 
         void OnDisable()
         {
+            QtBridgeController bridge = GetQtBridgeController();
+            if (bridge != null)
+            {
+                bridge.OnConvertToPngResult -= OnQtConvertToPngResult;
+            }
+            pendingUploadRequestById.Clear();
+
             // Clean up mini preview objects to prevent accumulation in Hierarchy
             if (miniDesignStage != null)
             {

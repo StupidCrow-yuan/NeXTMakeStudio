@@ -1,4 +1,4 @@
-﻿using UnityEngine;
+using UnityEngine;
 using UnityEngine.UI;
 using PocoRender.UI.Core;
 
@@ -63,6 +63,9 @@ namespace PocoRender.UI.Modules
         // Keep public API for backward compatibility
         public static GameObject CreateModalPopup(GameObject root, string title)
             => CanvasModalBuilder.CreateModalPopup(root, title);
+
+        public static GameObject CreateInfoPopup(GameObject root, string message)
+            => CanvasModalBuilder.CreateInfoPopup(root, message);
 
         public static GameObject CreateColorPicker(GameObject root)
             => CanvasModalBuilder.CreateColorPicker(root);

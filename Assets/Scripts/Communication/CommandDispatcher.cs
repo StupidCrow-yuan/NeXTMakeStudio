@@ -79,6 +79,11 @@ namespace PocoRender.Communication
                     Application.Quit();
                     break;
 
+                case "convert_to_png_result":
+                    HandleConvertToPngResult(msg);
+                    SendAck(sender, "convert_to_png_result", true);
+                    break;
+
                 case "ping":
                     SendAck(sender, "pong", true);
                     break;
@@ -235,6 +240,18 @@ namespace PocoRender.Communication
             SendAck(sender, "export", true);
         }
 
+        private void HandleConvertToPngResult(QtCommandMessage msg)
+        {
+            var bridge = UnityEngine.Object.FindObjectOfType<QtBridgeController>();
+            if (bridge == null) return;
+
+            bridge.NotifyConvertToPngResult(
+                msg.request_id ?? "",
+                msg.success,
+                msg.output_png_path ?? "",
+                msg.error_message ?? "");
+        }
+
         private void SendAck(EventSender sender, string command, bool success,
                               string error = null)
         {
@@ -266,6 +283,10 @@ namespace PocoRender.Communication
             public string output_path;
             public string format;
             public int dpi;
+            public string request_id;
+            public bool success;
+            public string output_png_path;
+            public string error_message;
         }
 
         [Serializable]

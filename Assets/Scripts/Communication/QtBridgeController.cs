@@ -55,6 +55,7 @@ namespace PocoRender.Communication
         private CommandDispatcher _dispatcher;
 
         private bool _initialized;
+        public event Action<string, bool, string, string> OnConvertToPngResult;
 
         public bool IsConnected => _sender != null && _sender.IsConnected;
 
@@ -246,6 +247,26 @@ namespace PocoRender.Communication
             _sender?.QueueEvent(json);
         }
 
+        public bool SendConvertToPngRequest(string requestId, string inputPath)
+        {
+            if (_sender == null || !_sender.IsConnected) return false;
+            if (string.IsNullOrEmpty(requestId) || string.IsNullOrEmpty(inputPath)) return false;
+
+            string json = JsonUtility.ToJson(new ConvertToPngRequestPayload
+            {
+                type = "convert_to_png_request",
+                request_id = requestId,
+                input_path = inputPath
+            });
+            _sender.QueueEvent(json);
+            return true;
+        }
+
+        public void NotifyConvertToPngResult(string requestId, bool success, string outputPngPath, string errorMessage)
+        {
+            OnConvertToPngResult?.Invoke(requestId, success, outputPngPath ?? "", errorMessage ?? "");
+        }
+
         [Serializable] private struct UnityReadyPayload
         {
             public string type;
@@ -299,6 +320,13 @@ namespace PocoRender.Communication
             public int level;
             public string message;
             public string details;
+        }
+
+        [Serializable] private struct ConvertToPngRequestPayload
+        {
+            public string type;
+            public string request_id;
+            public string input_path;
         }
     }
 }

@@ -1,4 +1,4 @@
-﻿using UnityEngine;
+using UnityEngine;
 using UnityEngine.UI;
 using System.Linq;
 using PocoRender.UI.Core;
@@ -14,6 +14,41 @@ namespace PocoRender.UI.Modules
         public static GameObject CreateModalPopup(GameObject root, string title)
         {
             return CreateBaseModal(root, title, new Vector2(600, 450));
+        }
+
+        public static GameObject CreateInfoPopup(GameObject root, string message)
+        {
+            GameObject overlay = UIFactory.CreateObject("ModalOverlay", root);
+            UIFactory.Stretch(overlay.GetComponent<RectTransform>());
+            overlay.AddComponent<Image>().color = new Color(0, 0, 0, 0.35f);
+            overlay.AddComponent<Button>().onClick.AddListener(() => Object.Destroy(overlay));
+
+            GameObject panel = UIFactory.CreateObject("InfoPanel", overlay);
+            RectTransform pRt = panel.GetComponent<RectTransform>();
+            pRt.sizeDelta = new Vector2(380, 160);
+            panel.AddComponent<Image>().color = Color.white;
+            panel.AddComponent<Outline>().effectColor = new Color(0.8f, 0.8f, 0.8f);
+            panel.AddComponent<Button>();
+
+            VerticalLayoutGroup vlg = panel.AddComponent<VerticalLayoutGroup>();
+            vlg.padding = new RectOffset(24, 24, 20, 16);
+            vlg.spacing = 14;
+            vlg.childAlignment = TextAnchor.MiddleCenter;
+            vlg.childControlWidth = true;
+            vlg.childControlHeight = true;
+            vlg.childForceExpandHeight = false;
+
+            Text msgText = UIFactory.CreateText(message ?? "", panel, 15, Color.black,
+                Vector2.zero, Vector2.zero, TextAnchor.MiddleCenter).GetComponent<Text>();
+            LayoutElement msgLe = msgText.gameObject.AddComponent<LayoutElement>();
+            msgLe.flexibleHeight = 1;
+
+            GameObject okBtn = UIFactory.CreateButton("OK", panel, Vector2.zero,
+                new Vector2(100, 34), new Color(0.15f, 0.15f, 0.18f), Color.white);
+            okBtn.AddComponent<LayoutElement>().minHeight = 34;
+            okBtn.GetComponent<Button>().onClick.AddListener(() => Object.Destroy(overlay));
+
+            return overlay;
         }
 
         public static GameObject CreateColorPicker(GameObject root)

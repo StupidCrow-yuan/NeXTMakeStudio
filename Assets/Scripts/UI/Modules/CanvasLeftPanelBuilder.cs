@@ -1,4 +1,4 @@
-﻿using UnityEngine;
+using UnityEngine;
 using UnityEngine.UI;
 using PocoRender.UI.Core;
 
@@ -32,7 +32,9 @@ namespace PocoRender.UI.Modules
             dRect.offsetMax = Vector2.zero;
             drawer.AddComponent<Image>().color = Color.white; drawer.AddComponent<Outline>().effectColor = new Color(0.9f, 0.9f, 0.9f);
             VerticalLayoutGroup dVlg = drawer.AddComponent<VerticalLayoutGroup>();
-            dVlg.padding = new RectOffset(16, 16, 16, 16); dVlg.spacing = 10; dVlg.childControlHeight = false;
+            dVlg.padding = new RectOffset(16, 16, 16, 16); dVlg.spacing = 10;
+            dVlg.childControlHeight = true; dVlg.childForceExpandHeight = false;
+            dVlg.childControlWidth = true; dVlg.childForceExpandWidth = true;
 
             GameObject divider = UIFactory.CreateObject("Divider", leftArea);
             RectTransform divRt = divider.GetComponent<RectTransform>();
@@ -45,12 +47,13 @@ namespace PocoRender.UI.Modules
             divider.transform.SetAsLastSibling();
 
             GameObject titleTxt = UIFactory.CreateText("Templates", drawer, 20, Color.black, Vector2.zero, new Vector2(0, 32), TextAnchor.MiddleLeft, FontStyle.Bold);
-            titleTxt.AddComponent<LayoutElement>().minHeight = 32;
+            var titleLe = titleTxt.AddComponent<LayoutElement>();
+            titleLe.minHeight = 32; titleLe.flexibleHeight = 0;
 
             GameObject searchBar = UIFactory.CreateObject("Search", drawer);
             searchBar.AddComponent<Image>().color = new Color(0.96f, 0.96f, 0.96f);
             var searchLe = searchBar.AddComponent<LayoutElement>();
-            searchLe.minHeight = 28; searchLe.preferredHeight = 28;
+            searchLe.minHeight = 28; searchLe.preferredHeight = 28; searchLe.flexibleHeight = 0;
             InputField searchInput = searchBar.AddComponent<InputField>();
             Text txt = UIFactory.CreateText("", searchBar, 12, Color.black, Vector2.zero, Vector2.zero).GetComponent<Text>();
             searchInput.textComponent = txt;
@@ -68,6 +71,64 @@ namespace PocoRender.UI.Modules
                 searchBar.SetActive(type == "Templates" || type == "Elements");
                 
                 switch(type) {
+                    case "Upload":
+                        {
+                            GameObject uploadWrap = UIFactory.CreateObject("UploadWrap", contentRoot);
+                            UIFactory.Stretch(uploadWrap.GetComponent<RectTransform>());
+                            VerticalLayoutGroup uvlg = uploadWrap.AddComponent<VerticalLayoutGroup>();
+                            uvlg.spacing = 6;
+                            uvlg.padding = new RectOffset(0, 0, 0, 0);
+                            uvlg.childAlignment = TextAnchor.UpperLeft;
+                            uvlg.childControlHeight = true;
+                            uvlg.childControlWidth = true;
+                            uvlg.childForceExpandHeight = false;
+
+                            string supported = CanvasController.GetUploadSupportedFormatsText();
+                            GameObject uploadBtn = UIFactory.CreateButton($"Upload ({supported})", uploadWrap, Vector2.zero, new Vector2(0, 36), Color.white, Color.black);
+                            LayoutElement btnLe = uploadBtn.AddComponent<LayoutElement>();
+                            btnLe.minHeight = 36;
+                            btnLe.flexibleHeight = 0;
+                            uploadBtn.GetComponent<Button>().onClick.AddListener(() => controller.OnUploadCanvasAsset());
+
+                            GameObject listBg = UIFactory.CreateObject("UploadListBg", uploadWrap);
+                            listBg.AddComponent<Image>().color = new Color(0.97f, 0.97f, 0.97f, 1f);
+                            LayoutElement listBgLe = listBg.AddComponent<LayoutElement>();
+                            listBgLe.flexibleHeight = 1;
+
+                            ScrollRect sr = listBg.AddComponent<ScrollRect>();
+                            sr.horizontal = false;
+                            sr.vertical = true;
+                            sr.scrollSensitivity = 30f;
+                            sr.movementType = ScrollRect.MovementType.Clamped;
+
+                            GameObject vp = UIFactory.CreateObject("Viewport", listBg);
+                            UIFactory.Stretch(vp.GetComponent<RectTransform>());
+                            vp.GetComponent<RectTransform>().offsetMin = new Vector2(4, 4);
+                            vp.GetComponent<RectTransform>().offsetMax = new Vector2(-4, -4);
+                            vp.AddComponent<Image>().color = new Color(0, 0, 0, 0);
+                            vp.AddComponent<RectMask2D>();
+
+                            GameObject listContent = UIFactory.CreateObject("Content", vp);
+                            RectTransform lcRt = listContent.GetComponent<RectTransform>();
+                            lcRt.anchorMin = new Vector2(0, 1);
+                            lcRt.anchorMax = new Vector2(1, 1);
+                            lcRt.pivot = new Vector2(0.5f, 1);
+                            lcRt.sizeDelta = new Vector2(0, 0);
+                            VerticalLayoutGroup lvlg = listContent.AddComponent<VerticalLayoutGroup>();
+                            lvlg.spacing = 6;
+                            lvlg.padding = new RectOffset(4, 4, 4, 4);
+                            lvlg.childControlHeight = true;
+                            lvlg.childControlWidth = true;
+                            lvlg.childForceExpandHeight = false;
+                            listContent.AddComponent<ContentSizeFitter>().verticalFit = ContentSizeFitter.FitMode.PreferredSize;
+
+                            UIFactory.CreateText("No uploads yet.", listContent, 11, Color.gray, Vector2.zero, new Vector2(0, 22), TextAnchor.MiddleLeft, FontStyle.Normal).name = "UploadEmptyHint";
+
+                            sr.viewport = vp.GetComponent<RectTransform>();
+                            sr.content = lcRt;
+                            controller.uploadListContainer = listContent;
+                        }
+                        break;
                     case "Templates":
                         CanvasWorkspaceBuilder.SetupGrid(contentRoot, 6, (i) => {
                             GameObject addedImg = UIFactory.CreateObject("Design_"+i, paper.gameObject);
