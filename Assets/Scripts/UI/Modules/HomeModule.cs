@@ -396,8 +396,18 @@ namespace PocoRender.UI.Modules
             GameObject plusBtn = UIFactory.CreateTextButton("+", tabsContainer, 20, UIFactory.COLOR_TEXT_DARK);
             LayoutElement ple = plusBtn.GetComponent<LayoutElement>(); ple.minWidth = 40; ple.minHeight = 36;
             plusBtn.GetComponent<Button>().onClick.AddListener(() => AddNewCanvas(null));
-            
-            SwitchToHome();
+
+            // In embedded mode Qt hosts the Home page; Unity should show only the Canvas editor.
+            // Create one canvas and switch to it so that when Qt sends new_project/open_project we are already on the editor.
+            if (BuildMode.IsEmbeddedMode)
+            {
+                AddNewCanvas(null);
+                homeTab.SetActive(false);
+            }
+            else
+            {
+                SwitchToHome();
+            }
             layout.Hide();
 
             // If external callback was provided (e.g. from tests), we can hook it, but here we define the logic.

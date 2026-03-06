@@ -1,4 +1,4 @@
-﻿using UnityEngine;
+using UnityEngine;
 using UnityEngine.UI;
 using System.Collections.Generic;
 using System.IO;
@@ -81,6 +81,16 @@ namespace PocoRender.UI
         public void ShowSelectionDialog()
         {
             Debug.Log("ShowSelectionDialog called");
+
+            // 嵌入 Qt 时不展示模式选择弹窗，直接使用 UV 打印模式，
+            // 避免在从 Qt 跳转到 Canvas 时闪现一帧选择界面。
+            if (PocoRender.Core.BuildMode.IsEmbeddedMode)
+            {
+                Debug.Log("[UI] Embedded mode - skip SelectionDialog, default to UVPrint");
+                OnStudioSelected(PrintMode.UVPrint);
+                return;
+            }
+
             if (selectionDialog != null)
             {
                 Debug.Log("SelectionDialog found, initializing");

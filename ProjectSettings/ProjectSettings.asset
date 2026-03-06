@@ -652,7 +652,7 @@ PlayerSettings:
   webGLPowerPreference: 2
   scriptingDefineSymbols:
     Android: HAS_SENTIS
-    Standalone: HAS_SENTIS
+    Standalone: HAS_SENTIS;EMBEDDED_MODE
     WebGL: HAS_SENTIS
     Windows Store Apps: HAS_SENTIS
     iPhone: HAS_SENTIS

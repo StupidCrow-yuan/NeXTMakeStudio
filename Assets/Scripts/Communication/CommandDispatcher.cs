@@ -1,6 +1,8 @@
 using System;
 using UnityEngine;
+using UnityEngine.UI;
 using PocoRender.UI;
+using PocoRender.UI.Core;
 
 namespace PocoRender.Communication
 {
@@ -107,11 +109,22 @@ namespace PocoRender.Communication
 
         private void HandleNewProject(QtCommandMessage msg)
         {
-            EnsureCanvas();
             Debug.Log($"[CommandDispatcher] NewProject: {msg.project_name} " +
-                      $"{msg.canvas_width}x{msg.canvas_height}");
+                      $"{msg.canvas_width}x{msg.canvas_height} mode={msg.mode}");
 
-            if (_canvas == null) return;
+            // Switch to the requested editor mode FIRST so the CanvasController
+            // exists before we try to find it.
+            SwitchToMode(msg.mode);
+
+            // Re-lookup canvas AFTER the mode switch created the layout.
+            _canvas = null;
+            EnsureCanvas();
+
+            if (_canvas == null)
+            {
+                Debug.LogWarning("[CommandDispatcher] CanvasController not found after mode switch");
+                return;
+            }
 
             _currentProjectName = msg.project_name ?? "Untitled";
 
@@ -128,15 +141,94 @@ namespace PocoRender.Communication
                     if (child.name == "BGDeselector") continue;
                     UnityEngine.Object.Destroy(child.gameObject);
                 }
+
+                // Apply template content (mirrors Unity HomeModule demo behavior)
+                if (!string.IsNullOrEmpty(msg.template_id))
+                {
+                    ApplyTemplateToPaper(msg.template_id, paper);
+                }
             }
 
             _isModified = false;
         }
 
+        private void ApplyTemplateToPaper(string templateId, RectTransform paper)
+        {
+            if (paper == null || string.IsNullOrEmpty(templateId)) return;
+
+            Texture2D tex = null;
+
+            // If templateId looks like an absolute file path, load from disk
+            if (templateId.Length > 2 && templateId[1] == ':' || templateId.StartsWith("/"))
+            {
+                tex = LoadTextureFromFile(templateId);
+            }
+            else
+            {
+                // Fallback: treat as Unity resource name
+                tex = Resources.Load<Texture2D>(templateId);
+            }
+
+            if (tex == null)
+            {
+                Debug.LogWarning($"[CommandDispatcher] ApplyTemplate: could not load image for '{templateId}'");
+                return;
+            }
+
+            GameObject addedImg = UIFactory.CreateObject("ImportedDesign", paper.gameObject);
+            RectTransform rt = addedImg.GetComponent<RectTransform>();
+
+            // Fit the image within the paper while preserving aspect ratio
+            float maxW = paper.sizeDelta.x * 0.9f;
+            float maxH = paper.sizeDelta.y * 0.9f;
+            float scale = Mathf.Min(maxW / tex.width, maxH / tex.height, 1f);
+            rt.sizeDelta = new Vector2(tex.width * scale, tex.height * scale);
+            rt.anchoredPosition = Vector2.zero;
+
+            Image img = addedImg.AddComponent<Image>();
+            img.sprite = Sprite.Create(tex, new Rect(0, 0, tex.width, tex.height),
+                                       new Vector2(0.5f, 0.5f));
+            img.preserveAspect = true;
+
+            addedImg.AddComponent<CanvasRenderer>();
+            addedImg.AddComponent<CanvasGroup>();
+            addedImg.AddComponent<BoxCollider2D>();
+            addedImg.AddComponent<ObjectManipulator>();
+
+            _canvas?.RecordAdd(addedImg);
+        }
+
+        private static Texture2D LoadTextureFromFile(string path)
+        {
+            try
+            {
+                if (!System.IO.File.Exists(path))
+                {
+                    Debug.LogWarning($"[CommandDispatcher] Image file not found: {path}");
+                    return null;
+                }
+                byte[] data = System.IO.File.ReadAllBytes(path);
+                Texture2D tex = new Texture2D(2, 2, TextureFormat.RGBA32, false);
+                if (tex.LoadImage(data))
+                    return tex;
+                UnityEngine.Object.Destroy(tex);
+                return null;
+            }
+            catch (System.Exception ex)
+            {
+                Debug.LogError($"[CommandDispatcher] Failed to load image '{path}': {ex.Message}");
+                return null;
+            }
+        }
+
         private void HandleOpenProject(QtCommandMessage msg)
         {
+            Debug.Log($"[CommandDispatcher] OpenProject: {msg.project_path} mode={msg.mode}");
+
+            // Switch to the requested editor mode FIRST, then re-lookup canvas.
+            SwitchToMode(msg.mode);
+            _canvas = null;
             EnsureCanvas();
-            Debug.Log($"[CommandDispatcher] OpenProject: {msg.project_path}");
 
             if (!string.IsNullOrEmpty(msg.project_data))
             {
@@ -217,6 +309,29 @@ namespace PocoRender.Communication
             _isModified = false;
         }
 
+        private void SwitchToMode(string mode)
+        {
+            if (string.IsNullOrEmpty(mode)) return;
+            var uiMgr = UnityEngine.Object.FindObjectOfType<PocoRenderStudioUIManager>();
+            if (uiMgr == null) return;
+
+            switch (mode)
+            {
+                case "uv_print":
+                    uiMgr.SetCurrentMode(PocoRender.Core.PrintMode.UVPrint);
+                    break;
+                case "3d_print":
+                    uiMgr.SetCurrentMode(PocoRender.Core.PrintMode.Print3D);
+                    break;
+                case "uv_3d_print":
+                    uiMgr.SetCurrentMode(PocoRender.Core.PrintMode.UVPrint);
+                    break;
+                default:
+                    uiMgr.SetCurrentMode(PocoRender.Core.PrintMode.UVPrint);
+                    break;
+            }
+        }
+
         private void HandleSetViewMode(QtCommandMessage msg)
         {
             Debug.Log($"[CommandDispatcher] SetViewMode: {msg.view_mode}");
@@ -288,6 +403,7 @@ namespace PocoRender.Communication
             public int canvas_width;
             public int canvas_height;
             public string template_id;
+            public string mode;
             public string project_path;
             public string project_data;
             public string save_path;
