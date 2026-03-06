@@ -40,6 +40,12 @@ namespace PocoRender.Core
         /// <summary>True when launched from PocoStudio with a valid print service port.</summary>
         public static bool HasPrintService => PrintServicePort > 0;
 
+        /// <summary>
+        /// Parent window handle passed via -parentHWND.  Non-zero means Unity
+        /// was asked to create its render surface as a child of this HWND.
+        /// </summary>
+        public static IntPtr ParentHwnd { get; private set; } = IntPtr.Zero;
+
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSceneLoad)]
         private static void DetectMode()
         {
@@ -69,6 +75,11 @@ namespace PocoRender.Core
                         PrintServicePort = port;
                         hasPrintServiceArg = true;
                     }
+                }
+                else if (args[i] == "-parentHWND" && i + 1 < args.Length)
+                {
+                    if (long.TryParse(args[i + 1], out long hwnd))
+                        ParentHwnd = new IntPtr(hwnd);
                 }
             }
 

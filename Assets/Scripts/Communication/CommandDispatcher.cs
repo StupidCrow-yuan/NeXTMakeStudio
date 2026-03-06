@@ -88,6 +88,10 @@ namespace PocoRender.Communication
                     SendAck(sender, "pong", true);
                     break;
 
+                case "open_file_dialog_result":
+                    HandleOpenFileDialogResult(msg);
+                    break;
+
                 default:
                     Debug.LogWarning($"[CommandDispatcher] Unrecognized command: {msg.command}");
                     SendAck(sender, msg.command, false, "unrecognized command");
@@ -252,6 +256,16 @@ namespace PocoRender.Communication
                 msg.error_message ?? "");
         }
 
+        private void HandleOpenFileDialogResult(QtCommandMessage msg)
+        {
+            var bridge = UnityEngine.Object.FindObjectOfType<QtBridgeController>();
+            if (bridge != null)
+                bridge.NotifyOpenFileDialogResult(
+                    msg.request_id ?? "",
+                    msg.success,
+                    msg.file_path ?? "");
+        }
+
         private void SendAck(EventSender sender, string command, bool success,
                               string error = null)
         {
@@ -287,6 +301,7 @@ namespace PocoRender.Communication
             public bool success;
             public string output_png_path;
             public string error_message;
+            public string file_path;
         }
 
         [Serializable]

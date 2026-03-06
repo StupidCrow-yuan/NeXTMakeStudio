@@ -102,6 +102,7 @@ namespace PocoRender.UI
         private static readonly string UploadSupportedFormatsText = "PDF, PNG, JPEG, GIF, BMP, TIFF, WEBP, SVG";
         private readonly Dictionary<string, string> pendingUploadRequestById = new Dictionary<string, string>();
         private QtBridgeController qtBridgeController;
+        private string pendingUploadFileDialogRequestId;
 
         /// <summary>
         /// 当前选中的图层对象（为 null 表示未选中任何单独图层，此时视为“整张画布”）。
@@ -641,10 +642,29 @@ namespace PocoRender.UI
                 "Upload Asset",
                 "",
                 "pdf,png,jpg,jpeg,gif,bmp,tif,tiff,webp,svg");
-            if (string.IsNullOrEmpty(path))
+            if (string.IsNullOrEmpty(path)) return;
+            ContinueUploadWithSelectedPath(path);
+#else
+            QtBridgeController bridge = GetQtBridgeController();
+            if (bridge == null || !bridge.IsConnected)
             {
+                ShowInfoPopup("Qt host not connected. Upload is available when running inside PocoStudio.");
                 return;
             }
+            string requestId = System.Guid.NewGuid().ToString("N");
+            pendingUploadFileDialogRequestId = requestId;
+            string filter = "PDF and Images (*.pdf *.png *.jpg *.jpeg *.gif *.bmp *.tif *.tiff *.webp *.svg);;All files (*)";
+            if (!bridge.SendOpenFileDialogRequest(requestId, "Upload Asset", filter))
+            {
+                pendingUploadFileDialogRequestId = null;
+                ShowInfoPopup("Failed to request file dialog from Qt host.");
+            }
+#endif
+        }
+
+        private void ContinueUploadWithSelectedPath(string path)
+        {
+            if (string.IsNullOrEmpty(path)) return;
 
             string extension = Path.GetExtension(path);
             if (string.IsNullOrEmpty(extension) || !SupportedUploadExtensions.Contains(extension))
@@ -672,9 +692,14 @@ namespace PocoRender.UI
             }
 
             Debug.LogWarning("[Upload] Qt bridge unavailable – cannot convert " + extension);
-#else
-            Debug.LogWarning("[Upload] Upload is only available in editor mode.");
-#endif
+        }
+
+        private void OnQtOpenFileDialogResult(string requestId, bool success, string filePath)
+        {
+            if (requestId != pendingUploadFileDialogRequestId) return;
+            pendingUploadFileDialogRequestId = null;
+            if (success && !string.IsNullOrEmpty(filePath))
+                ContinueUploadWithSelectedPath(filePath);
         }
 
         private void LoadImageLocally(string filePath)
@@ -1212,6 +1237,8 @@ namespace PocoRender.UI
             {
                 bridge.OnConvertToPngResult -= OnQtConvertToPngResult;
                 bridge.OnConvertToPngResult += OnQtConvertToPngResult;
+                bridge.OnOpenFileDialogResult -= OnQtOpenFileDialogResult;
+                bridge.OnOpenFileDialogResult += OnQtOpenFileDialogResult;
             }
 
             // USER REQ: Re-initialize mini preview when returning to editor
@@ -1232,6 +1259,11 @@ namespace PocoRender.UI
             if (handler != null)
             {
                 handler.OnWindowResized -= RefreshMiniPreviewOnResize;
+            }
+            var bridge = GetQtBridgeController();
+            if (bridge != null)
+            {
+                bridge.OnOpenFileDialogResult -= OnQtOpenFileDialogResult;
             }
         }
 

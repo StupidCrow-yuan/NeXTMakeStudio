@@ -35,6 +35,9 @@ namespace PocoRender.Communication
         private static extern bool EnumWindows(EnumWindowsProc lpEnumFunc, IntPtr lParam);
 
         [DllImport("user32.dll")]
+        private static extern bool EnumChildWindows(IntPtr hwndParent, EnumWindowsProc lpEnumFunc, IntPtr lParam);
+
+        [DllImport("user32.dll")]
         private static extern bool IsWindowVisible(IntPtr hWnd);
 
         [DllImport("user32.dll", SetLastError = true, CharSet = CharSet.Auto)]
@@ -56,6 +59,8 @@ namespace PocoRender.Communication
 
         private bool _initialized;
         public event Action<string, bool, string, string> OnConvertToPngResult;
+        /// <summary>Fired when Qt sends back the result of an open-file-dialog request (standalone/embedded).</summary>
+        public event Action<string, bool, string> OnOpenFileDialogResult;
 
         public bool IsConnected => _sender != null && _sender.IsConnected;
 
@@ -67,6 +72,10 @@ namespace PocoRender.Communication
                 enabled = false;
                 return;
             }
+
+#if UNITY_STANDALONE_WIN
+            EmbeddedWindowHider.HideAllProcessWindows();
+#endif
 
             commandPort = BuildMode.IpcPort;
             eventPort = commandPort + 1;
@@ -142,23 +151,49 @@ namespace PocoRender.Communication
 #if UNITY_STANDALONE_WIN
             try
             {
+                uint pid = (uint)System.Diagnostics.Process.GetCurrentProcess().Id;
+                IntPtr found = IntPtr.Zero;
+
+                // Strategy 1: if launched with -parentHWND, find the child window
+                // inside the Qt container (this is the expected path).
+                if (BuildMode.ParentHwnd != IntPtr.Zero)
+                {
+                    EnumChildWindows(BuildMode.ParentHwnd, (hWnd, _) =>
+                    {
+                        GetWindowThreadProcessId(hWnd, out uint winPid);
+                        if (winPid == pid)
+                        {
+                            found = hWnd;
+                            return false;
+                        }
+                        return true;
+                    }, IntPtr.Zero);
+
+                    if (found != IntPtr.Zero)
+                        return found.ToInt64();
+                }
+
+                // Strategy 2: GetActiveWindow (works for both top-level and child)
                 IntPtr active = GetActiveWindow();
                 if (active != IntPtr.Zero)
                     return active.ToInt64();
 
-                uint pid = (uint)System.Diagnostics.Process.GetCurrentProcess().Id;
-                IntPtr found = IntPtr.Zero;
+                // Strategy 3: Process.MainWindowHandle
+                IntPtr mainWnd = System.Diagnostics.Process.GetCurrentProcess().MainWindowHandle;
+                if (mainWnd != IntPtr.Zero)
+                    return mainWnd.ToInt64();
 
+                // Strategy 4: enumerate top-level windows (fallback)
                 EnumWindows((hWnd, _) =>
                 {
                     GetWindowThreadProcessId(hWnd, out uint winPid);
-                    if (winPid == pid && IsWindowVisible(hWnd))
+                    if (winPid == pid)
                     {
                         int len = GetWindowTextLength(hWnd);
                         if (len > 0)
                         {
                             found = hWnd;
-                            return false; // stop enumeration
+                            return false;
                         }
                     }
                     return true;
@@ -267,6 +302,27 @@ namespace PocoRender.Communication
             OnConvertToPngResult?.Invoke(requestId, success, outputPngPath ?? "", errorMessage ?? "");
         }
 
+        public bool SendOpenFileDialogRequest(string requestId, string title, string filter)
+        {
+            if (_sender == null || !_sender.IsConnected) return false;
+            if (string.IsNullOrEmpty(requestId)) return false;
+
+            string json = JsonUtility.ToJson(new OpenFileDialogRequestPayload
+            {
+                type = "open_file_dialog_request",
+                request_id = requestId,
+                title = title ?? "Select File",
+                filter = filter ?? ""
+            });
+            _sender.QueueEvent(json);
+            return true;
+        }
+
+        public void NotifyOpenFileDialogResult(string requestId, bool success, string filePath)
+        {
+            OnOpenFileDialogResult?.Invoke(requestId, success, filePath ?? "");
+        }
+
         [Serializable] private struct UnityReadyPayload
         {
             public string type;
@@ -327,6 +383,14 @@ namespace PocoRender.Communication
             public string type;
             public string request_id;
             public string input_path;
+        }
+
+        [Serializable] private struct OpenFileDialogRequestPayload
+        {
+            public string type;
+            public string request_id;
+            public string title;
+            public string filter;
         }
     }
 }
