@@ -1,4 +1,4 @@
-﻿using UnityEngine;
+using UnityEngine;
 using UnityEngine.UI;
 
 namespace PocoRender.UI.TextureEffects
@@ -34,12 +34,12 @@ namespace PocoRender.UI.TextureEffects
 
             quad.transform.SetParent(parent, false);
 
-            // UI space → parent space (parent scaled 0.01)
+            // UI space → parent space (parent scaled 0.01). Flip Y so canvas top (pos.y>0) = preview top.
             Vector2 pos = srcRt.anchoredPosition;
             float w = Mathf.Abs(srcRt.rect.width) > 0 ? srcRt.rect.width : srcRt.sizeDelta.x;
             float h = Mathf.Abs(srcRt.rect.height) > 0 ? srcRt.rect.height : srcRt.sizeDelta.y;
 
-            quad.transform.localPosition = new Vector3(pos.x, pos.y, -zOffsetUiUnits);
+            quad.transform.localPosition = new Vector3(pos.x, -pos.y, -zOffsetUiUnits);
             quad.transform.localRotation = Quaternion.identity;
             quad.transform.localScale = new Vector3(w, h, 1f);
 

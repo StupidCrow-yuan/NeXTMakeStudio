@@ -735,7 +735,8 @@ namespace PocoRender.UI
                 return false;
             }
 
-            Texture2D pngTexture = new Texture2D(2, 2, TextureFormat.RGBA32, false, true);
+            // sRGB (linear=false): PNG/JPEG from file or Qt conversion are sRGB; linear=true would make display too bright/gray
+            Texture2D pngTexture = new Texture2D(2, 2, TextureFormat.RGBA32, false, false);
             if (!pngTexture.LoadImage(pngBytes))
             {
                 Destroy(pngTexture);
@@ -1088,14 +1089,14 @@ namespace PocoRender.UI
                     float qh = selRt != null ? selRt.rect.height * worldScale : 2f;
                     quad.transform.localScale = new Vector3(qw, qh, 1f);
 
-                    // Position offset from center
+                    // Position offset from center (canvas Y up → preview: use +pos.y for Z so top on canvas = top in preview)
                     if (selRt != null)
                     {
                         Vector2 pos = selRt.anchoredPosition;
                         quad.transform.localPosition = new Vector3(
                             pos.x * worldScale,
                             0.07f,
-                            -pos.y * worldScale // UI Y up → world Z forward (inverted for top-down)
+                            pos.y * worldScale
                         );
                     }
 
