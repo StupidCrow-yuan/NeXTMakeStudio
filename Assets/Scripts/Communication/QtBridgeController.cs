@@ -66,6 +66,13 @@ namespace PocoRender.Communication
 
         void Awake()
         {
+#if UNITY_EDITOR
+            // Never run embedded IPC in the Unity Editor — no Qt host is present.
+            Debug.Log("[QtBridgeController] Editor mode — embedded IPC disabled");
+            enabled = false;
+            return;
+#endif
+
             if (BuildMode.IsStandaloneMode)
             {
                 Debug.Log("[QtBridgeController] Standalone mode — embedded IPC disabled");

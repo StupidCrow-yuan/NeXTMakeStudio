@@ -1,6 +1,7 @@
 using System;
 using UnityEngine;
 using UnityEngine.UI;
+using PocoRender.Core;
 using PocoRender.UI;
 using PocoRender.UI.Core;
 using PocoRender.UI.Modules;
@@ -115,15 +116,44 @@ namespace PocoRender.Communication
 
             SwitchToMode(msg.mode);
 
-            // Create a new Unity-native canvas tab (same as the "+" button)
-            if (HomeModule.AddCanvasAction != null)
+            if (BuildMode.IsEmbeddedMode)
             {
-                HomeModule.AddCanvasAction(null);
-            }
+                // Qt manages the tab level — Unity always shows exactly one canvas.
+                // Reuse the existing canvas if one is already open; create one only on
+                // first use (no canvas exists yet because we stopped creating the startup
+                // blank canvas in HomeModule).
+                _canvas = null;
+                EnsureCanvas();
 
-            // Re-lookup the newly created (now active) CanvasController
-            _canvas = null;
-            EnsureCanvas();
+                if (_canvas == null)
+                {
+                    // First project: no canvas exists yet — create one.
+                    if (HomeModule.AddCanvasAction != null)
+                        HomeModule.AddCanvasAction(null);
+                    _canvas = null;
+                    EnsureCanvas();
+                }
+                else if (_canvas.paper != null)
+                {
+                    // Subsequent project: clear the existing canvas content in-place.
+                    for (int i = _canvas.paper.childCount - 1; i >= 0; i--)
+                    {
+                        var child = _canvas.paper.GetChild(i);
+                        if (child.name == "BGDeselector") continue;
+                        UnityEngine.Object.Destroy(child.gameObject);
+                    }
+                }
+            }
+            else
+            {
+                // Standalone mode: create a new canvas tab (same as the "+" button).
+                if (HomeModule.AddCanvasAction != null)
+                    HomeModule.AddCanvasAction(null);
+
+                // Re-lookup the newly created (now active) CanvasController
+                _canvas = null;
+                EnsureCanvas();
+            }
 
             if (_canvas == null)
             {
@@ -226,6 +256,15 @@ namespace PocoRender.Communication
             SwitchToMode(msg.mode);
             _canvas = null;
             EnsureCanvas();
+
+            // If no canvas exists (e.g. first open in embedded mode before any new_project),
+            // create one so we have somewhere to load the project data into.
+            if (_canvas == null && HomeModule.AddCanvasAction != null)
+            {
+                HomeModule.AddCanvasAction(null);
+                _canvas = null;
+                EnsureCanvas();
+            }
 
             if (!string.IsNullOrEmpty(msg.project_data))
             {

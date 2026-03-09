@@ -397,11 +397,13 @@ namespace PocoRender.UI.Modules
             LayoutElement ple = plusBtn.GetComponent<LayoutElement>(); ple.minWidth = 40; ple.minHeight = 36;
             plusBtn.GetComponent<Button>().onClick.AddListener(() => AddNewCanvas(null));
 
-            // In embedded mode Qt hosts the Home page; Unity should show only the Canvas editor.
-            // Create one canvas and switch to it so that when Qt sends new_project/open_project we are already on the editor.
+            // In embedded mode Qt hosts the home page and manages canvas tabs via QTabWidget.
+            // Do NOT create a startup blank canvas here — CommandDispatcher will create/reuse
+            // one when it receives the first new_project or open_project command from Qt.
+            // Creating one here caused a spurious blank canvas tab to appear alongside the
+            // first user-requested canvas.
             if (BuildMode.IsEmbeddedMode)
             {
-                AddNewCanvas(null);
                 homeTab.SetActive(false);
             }
             else
