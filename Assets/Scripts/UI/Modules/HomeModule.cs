@@ -410,8 +410,16 @@ namespace PocoRender.UI.Modules
             }
             layout.Hide();
 
-            // If external callback was provided (e.g. from tests), we can hook it, but here we define the logic.
+            // Expose AddNewCanvas so CommandDispatcher can create Unity-native canvas tabs
+            AddCanvasAction = AddNewCanvas;
         }
+
+        /// <summary>
+        /// Static callback that CommandDispatcher can invoke to create a new
+        /// Unity-native canvas tab (same as the "+" button). Pass null for a
+        /// blank canvas.
+        /// </summary>
+        public static System.Action<Color?> AddCanvasAction;
 
         private void CreateHomeViewContent(GameObject parent, System.Action<Color?> addCanvasCallback)
         {

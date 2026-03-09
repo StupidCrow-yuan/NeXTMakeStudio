@@ -3,6 +3,7 @@ using UnityEngine;
 using UnityEngine.UI;
 using PocoRender.UI;
 using PocoRender.UI.Core;
+using PocoRender.UI.Modules;
 
 namespace PocoRender.Communication
 {
@@ -110,19 +111,23 @@ namespace PocoRender.Communication
         private void HandleNewProject(QtCommandMessage msg)
         {
             Debug.Log($"[CommandDispatcher] NewProject: {msg.project_name} " +
-                      $"{msg.canvas_width}x{msg.canvas_height} mode={msg.mode}");
+                      $"{msg.canvas_width}x{msg.canvas_height} mode={msg.mode} template={msg.template_id}");
 
-            // Switch to the requested editor mode FIRST so the CanvasController
-            // exists before we try to find it.
             SwitchToMode(msg.mode);
 
-            // Re-lookup canvas AFTER the mode switch created the layout.
+            // Create a new Unity-native canvas tab (same as the "+" button)
+            if (HomeModule.AddCanvasAction != null)
+            {
+                HomeModule.AddCanvasAction(null);
+            }
+
+            // Re-lookup the newly created (now active) CanvasController
             _canvas = null;
             EnsureCanvas();
 
             if (_canvas == null)
             {
-                Debug.LogWarning("[CommandDispatcher] CanvasController not found after mode switch");
+                Debug.LogWarning("[CommandDispatcher] CanvasController not found after AddCanvas");
                 return;
             }
 
@@ -135,14 +140,6 @@ namespace PocoRender.Communication
                 float h = msg.canvas_height > 0 ? msg.canvas_height : 600;
                 paper.sizeDelta = new Vector2(w, h);
 
-                for (int i = paper.childCount - 1; i >= 0; i--)
-                {
-                    var child = paper.GetChild(i);
-                    if (child.name == "BGDeselector") continue;
-                    UnityEngine.Object.Destroy(child.gameObject);
-                }
-
-                // Apply template content (mirrors Unity HomeModule demo behavior)
                 if (!string.IsNullOrEmpty(msg.template_id))
                 {
                     ApplyTemplateToPaper(msg.template_id, paper);
