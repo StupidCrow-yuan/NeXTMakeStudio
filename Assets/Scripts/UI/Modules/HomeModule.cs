@@ -288,7 +288,6 @@ namespace PocoRender.UI.Modules
                 UIFactory.Stretch(cv.GetComponent<RectTransform>());
                 CanvasModule.CreateCanvasEditor(cv);
                 activeController = cv.GetComponentInChildren<CanvasController>(); // Set active controller
-                ActiveController = activeController;
                 currentActiveCanvas = cv;
                 
                 if (activeController != null) {
@@ -377,7 +376,6 @@ namespace PocoRender.UI.Modules
                     foreach(Transform t in viewContainer.transform) if (t.name.StartsWith("CanvasView")) t.gameObject.SetActive(false);
                     cv.SetActive(true);
                     activeController = cv.GetComponentInChildren<CanvasController>(); // Switch active controller
-                    ActiveController = activeController;
                     currentActiveCanvas = cv;
                 });
                 tabBtn.onClick.Invoke();
@@ -399,11 +397,14 @@ namespace PocoRender.UI.Modules
             LayoutElement ple = plusBtn.GetComponent<LayoutElement>(); ple.minWidth = 40; ple.minHeight = 36;
             plusBtn.GetComponent<Button>().onClick.AddListener(() => AddNewCanvas(null));
 
-            // In embedded mode Qt hosts the home page and manages canvas tabs via QTabWidget.
-            // Create one startup blank canvas so Unity immediately shows an editable surface
+            // In embedded mode Qt hosts the Home page; Unity shows only the Canvas editor.
+            // Create one blank canvas on startup so the user sees an immediate canvas
             // instead of a "Waiting for project" placeholder.
-            // CommandDispatcher will reuse this canvas (if still empty) when Qt sends the
-            // first new_project/open_project, so no extra tab is ever created.
+            // - Qt Canvas tab: displays this blank canvas directly.
+            // - Qt detail page: CommandDispatcher reuses this blank canvas for the first
+            //   project; subsequent detail pages create additional canvas tabs.
+            AddCanvasAction = AddNewCanvas;
+
             if (BuildMode.IsEmbeddedMode)
             {
                 AddNewCanvas(null);
@@ -414,9 +415,6 @@ namespace PocoRender.UI.Modules
                 SwitchToHome();
             }
             layout.Hide();
-
-            // Expose AddNewCanvas so CommandDispatcher can create Unity-native canvas tabs
-            AddCanvasAction = AddNewCanvas;
         }
 
         /// <summary>
@@ -425,13 +423,6 @@ namespace PocoRender.UI.Modules
         /// blank canvas.
         /// </summary>
         public static System.Action<Color?> AddCanvasAction;
-
-        /// <summary>
-        /// The currently active <see cref="CanvasController"/> inside Unity.
-        /// Updated every time a canvas tab is created or switched to.
-        /// CommandDispatcher reads this to determine which canvas to operate on.
-        /// </summary>
-        public static CanvasController ActiveController;
 
         private void CreateHomeViewContent(GameObject parent, System.Action<Color?> addCanvasCallback)
         {
@@ -1022,8 +1013,17 @@ namespace PocoRender.UI.Modules
             {
                 RectTransform childRT = cloneRT.GetChild(i) as RectTransform;
                 if (childRT == null) continue;
-                childRT.anchoredPosition *= new Vector2(scaleX, scaleY);
-                childRT.sizeDelta        *= new Vector2(scaleX, scaleY);
+                childRT.anchoredPosition = new Vector2(
+                    childRT.anchoredPosition.x * scaleX,
+                    childRT.anchoredPosition.y * scaleY
+                );
+                childRT.sizeDelta = new Vector2(
+                    childRT.sizeDelta.x * scaleX,
+                    childRT.sizeDelta.y * scaleY
+                );
+                // Also scale font size for Text components if any
+                var texts = childRT.GetComponentsInChildren<Text>(true);
+                foreach(var t in texts) t.fontSize = Mathf.RoundToInt(t.fontSize * scaleX);
             }
 
             Canvas.ForceUpdateCanvases();

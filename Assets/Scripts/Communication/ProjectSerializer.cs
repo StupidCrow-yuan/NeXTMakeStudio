@@ -171,8 +171,10 @@ namespace PocoRender.Communication
             }
         }
 
-        private static void ClearCanvas(RectTransform paper)
+        /// <summary>Clears all layer children from paper (keeps BGDeselector). Used by CommandDispatcher.</summary>
+        public static void ClearCanvas(RectTransform paper)
         {
+            if (paper == null) return;
             for (int i = paper.childCount - 1; i >= 0; i--)
             {
                 var child = paper.GetChild(i);

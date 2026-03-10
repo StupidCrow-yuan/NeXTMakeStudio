@@ -11,12 +11,9 @@ namespace PocoRender.Editor
     ///   1. Standalone — full Unity UI, for independent development.
     ///      Output: Build/Standalone/PocoRenderStudio.exe (relative to Unity project)
     ///
-    ///   2. Build for PocoStudio (Plan A) — full Unity UI, NO EMBEDDED_MODE.
-    ///      Output: PocoStudio/prebuild/unity/PocoRenderStudio.exe
-    ///      When launched from Qt with --print-service-port, shows "Send to Print" button.
-    ///
-    ///   3. Build Embedded (Legacy) — stripped UI with EMBEDDED_MODE define.
-    ///      Kept for backward compatibility but NOT recommended for Plan A.
+    ///   2. Build for PocoStudio (Embedded) — EMBEDDED_MODE for Qt hosting.
+    ///      Output: NewWork/poco_studio/prebuild/unity/PocoRenderStudio.exe
+    ///      UI is stripped for embedding; Qt provides HOME, Unity provides Canvas.
     /// </summary>
     public static class BuildProfiles
     {
@@ -26,17 +23,16 @@ namespace PocoRender.Editor
         private static readonly string PocoStudioOutput =
             Path.GetFullPath(
                 Path.Combine(Application.dataPath,
-                             "../../PocoStudio/prebuild/unity/PocoRenderStudio.exe"));
+                             "../../NewWork/poco_studio/prebuild/unity/PocoRenderStudio.exe"));
 
         // =====================================================================
-        // Plan A (recommended): Full UI build for PocoStudio integration
+        // Build for PocoStudio (Embedded): EMBEDDED_MODE for Qt hosting
         // =====================================================================
 
-        [MenuItem("PocoRender/Build for PocoStudio (Plan A) %&b")]
+        [MenuItem("PocoRender/Build for PocoStudio (Embedded) %&b")]
         public static void BuildForPocoStudio()
         {
-            // No EMBEDDED_MODE — full UI preserved
-            SetDefines("");
+            SetDefines("EMBEDDED_MODE");
 
             string dir = Path.GetDirectoryName(PocoStudioOutput);
             if (!string.IsNullOrEmpty(dir) && !Directory.Exists(dir))
@@ -51,10 +47,9 @@ namespace PocoRender.Editor
             };
 
             var report = BuildPipeline.BuildPlayer(options);
-            Debug.Log($"[BuildProfiles] Plan A build finished: {report.summary.result}" +
+            Debug.Log($"[BuildProfiles] PocoStudio Embedded build finished: {report.summary.result}" +
                       $"\n  Output: {PocoStudioOutput}" +
-                      $"\n  Full UI: YES  |  EMBEDDED_MODE: NO" +
-                      $"\n  Launch from Qt with --print-service-port to enable print button");
+                      $"\n  EMBEDDED_MODE: YES (for Qt hosting)");
         }
 
         // =====================================================================
