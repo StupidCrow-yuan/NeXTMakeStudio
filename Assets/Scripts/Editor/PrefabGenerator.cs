@@ -1,4 +1,4 @@
-﻿#if UNITY_EDITOR
+#if UNITY_EDITOR
 using UnityEngine;
 using UnityEngine.UI;
 using UnityEditor;
@@ -25,7 +25,7 @@ public static class PrefabGenerator
         AssetDatabase.Refresh();
     }
 
-    [MenuItem("PocoRender/Generate Canvas Editor Prefab")]
+    // [MenuItem("PocoRender/Generate Canvas Editor Prefab")]
     public static void GenerateCanvasEditorPrefab()
     {
         EnsureDirectory(PrefabRoot);
@@ -49,7 +49,7 @@ public static class PrefabGenerator
         Object.DestroyImmediate(tempParent);
     }
 
-    [MenuItem("PocoRender/Generate Selection Dialog Prefab")]
+    // [MenuItem("PocoRender/Generate Selection Dialog Prefab")]
     public static void GenerateSelectionDialogPrefab()
     {
         EnsureDirectory(PrefabRoot);

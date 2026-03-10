@@ -77,28 +77,8 @@ namespace PocoRender.Editor
         // Legacy Embedded: stripped UI (not recommended for Plan A)
         // =====================================================================
 
-        [MenuItem("PocoRender/Build Embedded (Legacy)")]
-        public static void BuildEmbeddedLegacy()
-        {
-            SetDefines("EMBEDDED_MODE");
+        // Legacy option removed
 
-            string dir = Path.GetDirectoryName(PocoStudioOutput);
-            if (!string.IsNullOrEmpty(dir) && !Directory.Exists(dir))
-                Directory.CreateDirectory(dir);
-
-            var options = new BuildPlayerOptions
-            {
-                scenes = FindScenes(),
-                locationPathName = PocoStudioOutput,
-                target = BuildTarget.StandaloneWindows64,
-                options = BuildOptions.None
-            };
-
-            var report = BuildPipeline.BuildPlayer(options);
-            Debug.Log($"[BuildProfiles] Legacy Embedded build finished: {report.summary.result}" +
-                      $" → {PocoStudioOutput}" +
-                      $"\n  WARNING: This build has EMBEDDED_MODE — UI is stripped.");
-        }
 
         private static void SetDefines(string defines)
         {
