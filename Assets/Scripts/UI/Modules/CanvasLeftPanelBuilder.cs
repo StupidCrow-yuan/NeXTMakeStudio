@@ -130,13 +130,33 @@ namespace PocoRender.UI.Modules
                         }
                         break;
                     case "Templates":
-                        CanvasWorkspaceBuilder.SetupGrid(contentRoot, 6, (i) => {
-                            GameObject addedImg = UIFactory.CreateObject("Design_"+i, paper.gameObject);
-                            addedImg.GetComponent<RectTransform>().sizeDelta = new Vector2(200, 200);
-                            addedImg.AddComponent<Image>().color = Color.HSVToRGB((float)i/6f, 0.5f, 0.9f);
-                            CanvasWorkspaceBuilder.AddManipulationComponents(addedImg);
-                            controller.RecordAdd(addedImg);
-                        }, "T");
+                        // Automatically load all images from Resources/CanVas/Templates
+                        Object[] templateImages = Resources.LoadAll("CanVas/Templates", typeof(Sprite));
+                        if (templateImages != null && templateImages.Length > 0)
+                        {
+                            CanvasWorkspaceBuilder.SetupGrid(contentRoot, templateImages.Length, (i) => {
+                                Sprite sp = templateImages[i] as Sprite;
+                                GameObject addedImg = UIFactory.CreateObject("Design_" + i, paper.gameObject);
+                                addedImg.GetComponent<RectTransform>().sizeDelta = new Vector2(200, 200);
+                                Image imgComp = addedImg.AddComponent<Image>();
+                                imgComp.sprite = sp;
+                                imgComp.color = Color.white;
+                                imgComp.preserveAspect = true;
+                                CanvasWorkspaceBuilder.AddManipulationComponents(addedImg);
+                                controller.RecordAdd(addedImg);
+                            }, "T", templateImages); // Pass images to SetupGrid to show thumbnails
+                        }
+                        else
+                        {
+                            // Fallback if no images found
+                            CanvasWorkspaceBuilder.SetupGrid(contentRoot, 6, (i) => {
+                                GameObject addedImg = UIFactory.CreateObject("Design_" + i, paper.gameObject);
+                                addedImg.GetComponent<RectTransform>().sizeDelta = new Vector2(200, 200);
+                                addedImg.AddComponent<Image>().color = Color.HSVToRGB((float)i / 6f, 0.5f, 0.9f);
+                                CanvasWorkspaceBuilder.AddManipulationComponents(addedImg);
+                                controller.RecordAdd(addedImg);
+                            }, "T");
+                        }
                         break;
                     case "Text":
                         CanvasWorkspaceBuilder.SetupGrid(contentRoot, 4, (i) => {

@@ -1,4 +1,4 @@
-﻿using UnityEngine;
+using UnityEngine;
 using UnityEngine.UI;
 using PocoRender.UI.Core;
 
@@ -220,16 +220,44 @@ namespace PocoRender.UI.Modules
             toggleBtn.transform.SetAsLastSibling();
         }
 
-        public static void SetupGrid(GameObject parent, int count, System.Action<int> onClick, string prefix = "T")
+        public static void SetupGrid(GameObject parent, int count, System.Action<int> onClick, string prefix = "T", Object[] images = null)
         {
             GameObject grid = UIFactory.CreateObject("Grid", parent);
-            UIFactory.Stretch(grid.GetComponent<RectTransform>());
+            RectTransform gridRt = grid.GetComponent<RectTransform>();
+            UIFactory.Stretch(gridRt);
+            
+            // Allow grid to expand vertically
+            gridRt.anchorMin = new Vector2(0, 1);
+            gridRt.anchorMax = new Vector2(1, 1);
+            gridRt.pivot = new Vector2(0.5f, 1);
+            
             GridLayoutGroup glg = grid.AddComponent<GridLayoutGroup>();
-            glg.cellSize = new Vector2(110, 110); glg.spacing = new Vector2(10, 10);
+            glg.cellSize = new Vector2(110, 110); 
+            glg.spacing = new Vector2(10, 10);
+            glg.padding = new RectOffset(10, 10, 10, 10);
+            glg.constraint = GridLayoutGroup.Constraint.Flexible;
+            
+            // Add ContentSizeFitter so it expands inside a ScrollRect
+            ContentSizeFitter csf = grid.AddComponent<ContentSizeFitter>();
+            csf.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
+            
             for(int k=0; k<count; k++) {
                 GameObject item = UIFactory.CreateObject(prefix+k, grid);
-                int index = k; item.AddComponent<Button>().onClick.AddListener(() => onClick(index));
-                item.AddComponent<Image>().color = Color.HSVToRGB((float)k/(float)count, 0.5f, 0.9f);
+                int index = k; 
+                Button btn = item.AddComponent<Button>();
+                btn.onClick.AddListener(() => onClick(index));
+                
+                Image img = item.AddComponent<Image>();
+                if (images != null && k < images.Length && images[k] is Sprite sp)
+                {
+                    img.sprite = sp;
+                    img.color = Color.white;
+                    img.preserveAspect = true;
+                }
+                else
+                {
+                    img.color = Color.HSVToRGB((float)k/(float)count, 0.5f, 0.9f);
+                }
             }
         }
 

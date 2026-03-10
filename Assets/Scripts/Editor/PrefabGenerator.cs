@@ -19,6 +19,9 @@ public static class PrefabGenerator
     public static void GenerateAllPrefabs()
     {
         EnsureDirectory(PrefabRoot);
+        // Automatically fix template sprites before generating prefabs
+        PocoRender.Editor.TemplateTools.FixTemplateImages();
+        
         GenerateCanvasEditorPrefab();
         GenerateSelectionDialogPrefab();
         Debug.Log("[PrefabGenerator] All prefabs generated in " + PrefabRoot);
@@ -49,7 +52,7 @@ public static class PrefabGenerator
         Object.DestroyImmediate(tempParent);
     }
 
-    // [MenuItem("PocoRender/Generate Selection Dialog Prefab")]
+    [MenuItem("PocoRender/Generate Selection Dialog Prefab")]
     public static void GenerateSelectionDialogPrefab()
     {
         EnsureDirectory(PrefabRoot);
@@ -74,8 +77,39 @@ public static class PrefabGenerator
         hlg.spacing = 60; hlg.childAlignment = TextAnchor.MiddleCenter; hlg.childControlWidth = false; hlg.childControlHeight = false;
         UIFactory.Stretch(cardsRow.GetComponent<RectTransform>());
 
+        // Load images for cards
+        Sprite uvSprite = LoadSprite("CanVas/Templates/20260310-160351");
+        Sprite p3dSprite = LoadSprite("CanVas/Templates/20260310-160417");
+
         GameObject uvCard = UIFactory.CreateSelectionCard("UV Print Studio", cardsRow);
+        if (uvSprite != null)
+        {
+            Transform iconTr = uvCard.transform.Find("Icon");
+            if (iconTr != null)
+            {
+                Image iconImg = iconTr.GetComponent<Image>();
+                iconImg.sprite = uvSprite;
+                iconImg.color = Color.white;
+                iconImg.preserveAspect = true;
+                // Make icon larger to fill more space since it's a nice image
+                iconTr.GetComponent<RectTransform>().sizeDelta = new Vector2(260, 180);
+            }
+        }
+
         GameObject p3dCard = UIFactory.CreateSelectionCard("3D Print Studio", cardsRow);
+        if (p3dSprite != null)
+        {
+            Transform iconTr = p3dCard.transform.Find("Icon");
+            if (iconTr != null)
+            {
+                Image iconImg = iconTr.GetComponent<Image>();
+                iconImg.sprite = p3dSprite;
+                iconImg.color = Color.white;
+                iconImg.preserveAspect = true;
+                iconTr.GetComponent<RectTransform>().sizeDelta = new Vector2(260, 180);
+            }
+        }
+
         GameObject confirmBtn = UIFactory.CreateButton("Enter Studio", dialog, new Vector2(0, -220), new Vector2(200, 50), UIFactory.COLOR_ACCENT_GREEN, Color.white);
 
         StudioSelectionDialog script = dialog.AddComponent<StudioSelectionDialog>();
@@ -91,6 +125,39 @@ public static class PrefabGenerator
         Debug.Log("[PrefabGenerator] Saved: " + path);
         
         Object.DestroyImmediate(overlay);
+    }
+
+    private static Sprite LoadSprite(string resourcePath)
+    {
+        // Try to find the file with common extensions
+        string[] extensions = { ".jpg", ".png", ".jpeg" };
+        string assetPath = null;
+        
+        foreach (var ext in extensions)
+        {
+            string p = "Assets/Resources/" + resourcePath + ext;
+            if (System.IO.File.Exists(p))
+            {
+                assetPath = p;
+                break;
+            }
+        }
+
+        if (string.IsNullOrEmpty(assetPath))
+        {
+            Debug.LogWarning("[PrefabGenerator] Could not find image at Resources/" + resourcePath);
+            return null;
+        }
+
+        TextureImporter importer = AssetImporter.GetAtPath(assetPath) as TextureImporter;
+        if (importer != null && importer.textureType != TextureImporterType.Sprite)
+        {
+            importer.textureType = TextureImporterType.Sprite;
+            importer.SaveAndReimport();
+            Debug.Log("[PrefabGenerator] Converted " + assetPath + " to Sprite.");
+        }
+        
+        return Resources.Load<Sprite>(resourcePath);
     }
 
     private static void EnsureDirectory(string path)
