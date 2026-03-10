@@ -106,7 +106,26 @@ namespace PocoRender.Communication
         private void EnsureCanvas()
         {
             if (_canvas != null) return;
-            _canvas = UnityEngine.Object.FindObjectOfType<CanvasController>();
+            // Prefer the canvas that HomeModule considers active (set whenever a tab
+            // is created or switched), then fall back to scene-wide search.
+            _canvas = HomeModule.ActiveController
+                      ?? UnityEngine.Object.FindObjectOfType<CanvasController>();
+        }
+
+        /// <summary>
+        /// Returns true when a canvas has no user-placed objects (only the internal
+        /// BGDeselector helper, if present). Used to decide whether to reuse the
+        /// startup blank canvas or to create a new tab.
+        /// </summary>
+        private static bool IsCanvasEmpty(CanvasController canvas)
+        {
+            if (canvas == null || canvas.paper == null) return true;
+            for (int i = 0; i < canvas.paper.childCount; i++)
+            {
+                if (canvas.paper.GetChild(i).name != "BGDeselector")
+                    return false;
+            }
+            return true;
         }
 
         private void HandleNewProject(QtCommandMessage msg)
@@ -118,24 +137,25 @@ namespace PocoRender.Communication
 
             if (BuildMode.IsEmbeddedMode)
             {
-                // Qt manages the tab level — Unity always shows exactly one canvas.
-                // Reuse the existing canvas if one is already open; create one only on
-                // first use (no canvas exists yet because we stopped creating the startup
-                // blank canvas in HomeModule).
-                _canvas = null;
-                EnsureCanvas();
+                // Get the currently active canvas (set by HomeModule when a tab is
+                // created or switched).
+                _canvas = HomeModule.ActiveController;
+                if (_canvas == null) EnsureCanvas();
 
-                if (_canvas == null)
+                if (_canvas == null || !IsCanvasEmpty(_canvas))
                 {
-                    // First project: no canvas exists yet — create one.
+                    // No canvas yet, OR active canvas already has user content
+                    // → create a fresh blank tab (same as clicking "+" in Unity).
                     if (HomeModule.AddCanvasAction != null)
                         HomeModule.AddCanvasAction(null);
-                    _canvas = null;
-                    EnsureCanvas();
+                    _canvas = HomeModule.ActiveController;
+                    if (_canvas == null) EnsureCanvas();
                 }
-                else if (_canvas.paper != null)
+                // else: active canvas is empty (e.g. startup blank canvas) → reuse it.
+
+                // Clear any leftover content so the canvas is truly blank.
+                if (_canvas?.paper != null)
                 {
-                    // Subsequent project: clear the existing canvas content in-place.
                     for (int i = _canvas.paper.childCount - 1; i >= 0; i--)
                     {
                         var child = _canvas.paper.GetChild(i);
@@ -254,17 +274,20 @@ namespace PocoRender.Communication
 
             // Switch to the requested editor mode FIRST, then re-lookup canvas.
             SwitchToMode(msg.mode);
-            _canvas = null;
-            EnsureCanvas();
 
-            // If no canvas exists (e.g. first open in embedded mode before any new_project),
-            // create one so we have somewhere to load the project data into.
-            if (_canvas == null && HomeModule.AddCanvasAction != null)
+            _canvas = HomeModule.ActiveController;
+            if (_canvas == null) EnsureCanvas();
+
+            if (_canvas == null || !IsCanvasEmpty(_canvas))
             {
-                HomeModule.AddCanvasAction(null);
-                _canvas = null;
-                EnsureCanvas();
+                // No canvas, or active canvas already has content → create a new tab
+                // so the opened project gets its own dedicated canvas.
+                if (HomeModule.AddCanvasAction != null)
+                    HomeModule.AddCanvasAction(null);
+                _canvas = HomeModule.ActiveController;
+                if (_canvas == null) EnsureCanvas();
             }
+            // else: active canvas is empty (startup blank) → load project into it.
 
             if (!string.IsNullOrEmpty(msg.project_data))
             {

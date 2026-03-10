@@ -288,6 +288,7 @@ namespace PocoRender.UI.Modules
                 UIFactory.Stretch(cv.GetComponent<RectTransform>());
                 CanvasModule.CreateCanvasEditor(cv);
                 activeController = cv.GetComponentInChildren<CanvasController>(); // Set active controller
+                ActiveController = activeController;
                 currentActiveCanvas = cv;
                 
                 if (activeController != null) {
@@ -376,6 +377,7 @@ namespace PocoRender.UI.Modules
                     foreach(Transform t in viewContainer.transform) if (t.name.StartsWith("CanvasView")) t.gameObject.SetActive(false);
                     cv.SetActive(true);
                     activeController = cv.GetComponentInChildren<CanvasController>(); // Switch active controller
+                    ActiveController = activeController;
                     currentActiveCanvas = cv;
                 });
                 tabBtn.onClick.Invoke();
@@ -398,12 +400,13 @@ namespace PocoRender.UI.Modules
             plusBtn.GetComponent<Button>().onClick.AddListener(() => AddNewCanvas(null));
 
             // In embedded mode Qt hosts the home page and manages canvas tabs via QTabWidget.
-            // Do NOT create a startup blank canvas here — CommandDispatcher will create/reuse
-            // one when it receives the first new_project or open_project command from Qt.
-            // Creating one here caused a spurious blank canvas tab to appear alongside the
-            // first user-requested canvas.
+            // Create one startup blank canvas so Unity immediately shows an editable surface
+            // instead of a "Waiting for project" placeholder.
+            // CommandDispatcher will reuse this canvas (if still empty) when Qt sends the
+            // first new_project/open_project, so no extra tab is ever created.
             if (BuildMode.IsEmbeddedMode)
             {
+                AddNewCanvas(null);
                 homeTab.SetActive(false);
             }
             else
@@ -422,6 +425,13 @@ namespace PocoRender.UI.Modules
         /// blank canvas.
         /// </summary>
         public static System.Action<Color?> AddCanvasAction;
+
+        /// <summary>
+        /// The currently active <see cref="CanvasController"/> inside Unity.
+        /// Updated every time a canvas tab is created or switched to.
+        /// CommandDispatcher reads this to determine which canvas to operate on.
+        /// </summary>
+        public static CanvasController ActiveController;
 
         private void CreateHomeViewContent(GameObject parent, System.Action<Color?> addCanvasCallback)
         {
