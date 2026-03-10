@@ -330,6 +330,30 @@ namespace PocoRender.Communication
             OnOpenFileDialogResult?.Invoke(requestId, success, filePath ?? "");
         }
 
+        public void SendPublishWork(int width, int height, string thumbBase64, string projectJson, PublishMetadata metadata)
+        {
+            string json = JsonUtility.ToJson(new PublishWorkPayload
+            {
+                type = "publish_work",
+                width = width,
+                height = height,
+                thumbnail_base64 = thumbBase64,
+                project_json = projectJson,
+                metadata = metadata
+            });
+            _sender?.QueueEvent(json);
+        }
+
+        [Serializable] public struct PublishMetadata
+        {
+            public string name;
+            public string category;
+            public string theme;
+            public string style;
+            public string license;
+            public string tags;
+        }
+
         [Serializable] private struct UnityReadyPayload
         {
             public string type;
@@ -398,6 +422,16 @@ namespace PocoRender.Communication
             public string request_id;
             public string title;
             public string filter;
+        }
+
+        [Serializable] private struct PublishWorkPayload
+        {
+            public string type;
+            public int width;
+            public int height;
+            public string thumbnail_base64;
+            public string project_json;
+            public PublishMetadata metadata;
         }
     }
 }

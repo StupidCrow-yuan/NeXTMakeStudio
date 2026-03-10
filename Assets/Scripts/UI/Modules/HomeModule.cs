@@ -81,7 +81,8 @@ namespace PocoRender.UI.Modules
             srhlg.spacing = 15; srhlg.padding = new RectOffset(20, 20, 0, 0); srhlg.childAlignment = TextAnchor.MiddleRight; srhlg.childControlWidth = false;
 
             UIFactory.CreateButton("Download ↓", subRight, Vector2.zero, new Vector2(100, 32), new Color(0.95f, 0.95f, 0.95f), Color.black);
-            UIFactory.CreateButton("Publish", subRight, Vector2.zero, new Vector2(80, 32), Color.black, Color.white);
+            var pubBtn = UIFactory.CreateButton("Publish", subRight, Vector2.zero, new Vector2(80, 32), Color.black, Color.white);
+            pubBtn.GetComponent<Button>().onClick.AddListener(() => OnPublishClick(layout.gameObject));
 
             GameObject tabsContainer = UIFactory.CreateObject("TabsContainer", tabBar);
             HorizontalLayoutGroup tclg = tabsContainer.AddComponent<HorizontalLayoutGroup>();
@@ -935,6 +936,161 @@ namespace PocoRender.UI.Modules
             {
                 Debug.LogError($"[HomeModule] Print export failed: {ex.Message}");
             }
+        }
+
+        private void OnPublishClick(GameObject root)
+        {
+            if (activeController == null || activeController.paper == null) return;
+
+            var bridge = root.GetComponentInParent<Communication.QtBridgeController>();
+            if (bridge == null) bridge = Object.FindObjectOfType<Communication.QtBridgeController>();
+            if (bridge == null || !bridge.IsConnected)
+            {
+                Debug.LogWarning("[HomeModule] Cannot publish - bridge not connected");
+                return;
+            }
+
+            // Create Publish Dialog
+            GameObject dialogObj = UIFactory.CreateObject("PublishDialog", root.transform.parent.gameObject); // Attach to root parent (layout)
+            UIFactory.Stretch(dialogObj.GetComponent<RectTransform>());
+            
+            // Background Dimmer
+            Image bg = dialogObj.AddComponent<Image>();
+            bg.color = new Color(0, 0, 0, 0.5f);
+            
+            // Dialog Panel
+            GameObject panel = UIFactory.CreateObject("Panel", dialogObj);
+            RectTransform pr = panel.GetComponent<RectTransform>();
+            pr.anchorMin = new Vector2(0.5f, 0.5f); pr.anchorMax = new Vector2(0.5f, 0.5f);
+            pr.sizeDelta = new Vector2(800, 500);
+            pr.anchoredPosition = Vector2.zero;
+            panel.AddComponent<Image>().color = Color.white;
+            panel.AddComponent<Outline>().effectColor = Color.gray;
+
+            // --- Layout ---
+            GameObject hLayoutObj = UIFactory.CreateObject("HLayout", panel);
+            UIFactory.Stretch(hLayoutObj.GetComponent<RectTransform>());
+            HorizontalLayoutGroup hlg = hLayoutObj.AddComponent<HorizontalLayoutGroup>();
+            hlg.padding = new RectOffset(20, 20, 20, 20);
+            hlg.spacing = 20;
+
+            // Left: Preview
+            GameObject leftCol = UIFactory.CreateObject("LeftCol", hLayoutObj);
+            leftCol.AddComponent<LayoutElement>().preferredWidth = 300;
+            VerticalLayoutGroup llg = leftCol.AddComponent<VerticalLayoutGroup>();
+            llg.childControlHeight = false; llg.childForceExpandHeight = false;
+            
+            GameObject previewObj = UIFactory.CreateObject("Preview", leftCol);
+            previewObj.AddComponent<LayoutElement>().minHeight = 400;
+            RawImage rawImg = previewObj.AddComponent<RawImage>();
+            rawImg.color = Color.gray; // Placeholder
+            
+            // Right: Form
+            GameObject rightCol = UIFactory.CreateObject("RightCol", hLayoutObj);
+            rightCol.AddComponent<LayoutElement>().flexibleWidth = 1;
+            VerticalLayoutGroup rlg = rightCol.AddComponent<VerticalLayoutGroup>();
+            rlg.spacing = 15;
+            rlg.childControlHeight = false; rlg.childForceExpandHeight = false;
+
+            UIFactory.CreateText("Publish Design", rightCol, 24, Color.black, Vector2.zero, new Vector2(0, 40), TextAnchor.MiddleLeft, FontStyle.Bold);
+
+            // Helper to create labelled input
+            System.Func<string, GameObject, InputField> CreateInput = (label, p) => {
+                UIFactory.CreateText(label, p, 14, Color.gray, Vector2.zero, new Vector2(0, 20), TextAnchor.MiddleLeft);
+                GameObject inpObj = UIFactory.CreateObject("Input_" + label, p);
+                inpObj.AddComponent<LayoutElement>().minHeight = 35;
+                Image inpBg = inpObj.AddComponent<Image>(); inpBg.color = new Color(0.95f, 0.95f, 0.95f);
+                InputField inp = inpObj.AddComponent<InputField>();
+                GameObject txtObj = UIFactory.CreateText("", inpObj, 14, Color.black, Vector2.zero, Vector2.zero);
+                UIFactory.Stretch(txtObj.GetComponent<RectTransform>());
+                txtObj.GetComponent<RectTransform>().offsetMin = new Vector2(10, 0);
+                inp.textComponent = txtObj.GetComponent<Text>();
+                return inp;
+            };
+
+            // Helper to create labelled dropdown
+            System.Func<string, GameObject, Dropdown> CreateDropdown = (label, p) => {
+                UIFactory.CreateText(label, p, 14, Color.gray, Vector2.zero, new Vector2(0, 20), TextAnchor.MiddleLeft);
+                GameObject ddObj = UIFactory.CreateObject("DD_" + label, p);
+                ddObj.AddComponent<LayoutElement>().minHeight = 35;
+                Image ddBg = ddObj.AddComponent<Image>(); ddBg.color = new Color(0.95f, 0.95f, 0.95f);
+                
+                Dropdown dd = ddObj.AddComponent<Dropdown>();
+                GameObject labelObj = UIFactory.CreateText("Option", ddObj, 14, Color.black, Vector2.zero, Vector2.zero);
+                UIFactory.Stretch(labelObj.GetComponent<RectTransform>());
+                labelObj.GetComponent<RectTransform>().offsetMin = new Vector2(10, 0);
+                dd.captionText = labelObj.GetComponent<Text>();
+                
+                // Template (needed for Dropdown to work)
+                GameObject template = UIFactory.CreateObject("Template", ddObj);
+                UIFactory.Stretch(template.GetComponent<RectTransform>());
+                template.GetComponent<RectTransform>().offsetMin = new Vector2(0, -150); // Drop down
+                template.AddComponent<Image>().color = Color.white;
+                ScrollRect sr = template.AddComponent<ScrollRect>();
+                template.SetActive(false);
+                dd.template = template.GetComponent<RectTransform>();
+                
+                GameObject vp = UIFactory.CreateObject("Viewport", template);
+                UIFactory.Stretch(vp.GetComponent<RectTransform>());
+                vp.AddComponent<Mask>();
+                vp.AddComponent<Image>().color = Color.white;
+                
+                GameObject content = UIFactory.CreateObject("Content", vp);
+                UIFactory.Stretch(content.GetComponent<RectTransform>());
+                content.AddComponent<VerticalLayoutGroup>().childControlHeight = false;
+                content.AddComponent<ContentSizeFitter>().verticalFit = ContentSizeFitter.FitMode.PreferredSize;
+                sr.content = content.GetComponent<RectTransform>();
+                sr.viewport = vp.GetComponent<RectTransform>();
+                
+                GameObject item = UIFactory.CreateObject("Item", content);
+                RectTransform ir = item.GetComponent<RectTransform>();
+                ir.sizeDelta = new Vector2(0, 30);
+                item.AddComponent<Toggle>();
+                GameObject itemLabel = UIFactory.CreateText("Option A", item, 14, Color.black, Vector2.zero, Vector2.zero);
+                UIFactory.Stretch(itemLabel.GetComponent<RectTransform>());
+                itemLabel.GetComponent<RectTransform>().offsetMin = new Vector2(10, 0);
+                
+                dd.itemText = itemLabel.GetComponent<Text>();
+                return dd;
+            };
+
+            var nameInp = CreateInput("Design Name", rightCol);
+            var catInp = CreateDropdown("Category", rightCol);
+            var themeInp = CreateDropdown("Theme", rightCol);
+            var styleInp = CreateDropdown("Style", rightCol);
+            var licenseInp = CreateDropdown("License", rightCol);
+            var tagsInp = CreateInput("Tags", rightCol);
+
+            // Buttons
+            GameObject btnRow = UIFactory.CreateObject("Buttons", rightCol);
+            btnRow.AddComponent<LayoutElement>().minHeight = 40;
+            HorizontalLayoutGroup bhlg = btnRow.AddComponent<HorizontalLayoutGroup>();
+            bhlg.spacing = 10; bhlg.childAlignment = TextAnchor.MiddleRight;
+
+            Button cancelBtn = UIFactory.CreateButton("Cancel", btnRow, Vector2.zero, new Vector2(100, 40), Color.white, Color.black).GetComponent<Button>();
+            Button pubBtn = UIFactory.CreateButton("Publish", btnRow, Vector2.zero, new Vector2(100, 40), Color.black, Color.white).GetComponent<Button>();
+
+            // Attach Logic Script
+            // Note: Since PublishDialog is in a different assembly definition (potentially) or namespace issue, 
+            // ensure the namespace is correct.
+            var logic = dialogObj.AddComponent<PocoRender.UI.Modules.PublishDialog>();
+            
+            logic.previewImage = rawImg;
+            logic.nameInput = nameInp;
+            logic.categoryDropdown = catInp;
+            logic.themeDropdown = themeInp;
+            logic.styleDropdown = styleInp;
+            logic.licenseDropdown = licenseInp;
+            logic.tagsInput = tagsInp;
+            logic.cancelButton = cancelBtn;
+            logic.publishButton = pubBtn;
+
+            logic.Setup(bridge, activeController.paper, () => Object.Destroy(dialogObj));
+        }
+
+        public static Texture2D CapturePaperFlatStatic(RectTransform paper)
+        {
+            return CapturePaperFlat(paper);
         }
 
         /// <summary>
