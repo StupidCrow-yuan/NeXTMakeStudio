@@ -13,12 +13,13 @@ namespace PocoRender.UI
     {
         public GameObject contextToolbar;
         
-        // Position Info Fields
-        public Text posXText;
-        public Text posYText;
-        public Text widthText;
-        public Text heightText;
-        public Text rotationText;
+        // Position Info Fields (editable)
+        public InputField posXInput;
+        public InputField posYInput;
+        public InputField widthInput;
+        public InputField heightInput;
+        public InputField rotationInput;
+        private bool isUpdatingPositionUI = false;
         public GameObject positionPanel; 
         public Text canvasSizeText; 
         public RectTransform bottomRuler;
@@ -197,10 +198,7 @@ namespace PocoRender.UI
             SyncCraftModeUI(data.craftMode);
 
             UpdatePositionInfo();
-            UpdateLayersPanel(); // Refresh selection in list
-            
-            // Update Mini Preview
-            UpdateMiniPreview();
+            UpdateLayersPanel();
         }
 
         public void Deselect()
@@ -331,26 +329,52 @@ namespace PocoRender.UI
 
         public void UpdatePositionInfo()
         {
-            if (currentSelection != null)
+            if (currentSelection == null) return;
+            RectTransform rt = currentSelection.GetComponent<RectTransform>();
+            if (rt == null) return;
+
+            isUpdatingPositionUI = true;
+
+            float userX = 300f - rt.anchoredPosition.x;
+            float userY = rt.anchoredPosition.y + 300f;
+
+            if (posXInput) posXInput.text = $"{userX:F1}";
+            if (posYInput) posYInput.text = $"{userY:F1}";
+            if (widthInput) widthInput.text = $"{rt.rect.width:F1}";
+            if (heightInput) heightInput.text = $"{rt.rect.height:F1}";
+
+            float rot = rt.localEulerAngles.z;
+            if (rot > 180) rot -= 360;
+            if (rotationInput) rotationInput.text = $"{-rot:F1}";
+
+            isUpdatingPositionUI = false;
+        }
+
+        public void OnPositionInputChanged()
+        {
+            if (isUpdatingPositionUI || currentSelection == null) return;
+            RectTransform rt = currentSelection.GetComponent<RectTransform>();
+            if (rt == null) return;
+
+            Vector2 oldPos = rt.anchoredPosition;
+
+            if (posXInput != null && float.TryParse(posXInput.text, out float ux))
+                rt.anchoredPosition = new Vector2(300f - ux, rt.anchoredPosition.y);
+            if (posYInput != null && float.TryParse(posYInput.text, out float uy))
+                rt.anchoredPosition = new Vector2(rt.anchoredPosition.x, uy - 300f);
+
+            if (widthInput != null && float.TryParse(widthInput.text, out float w) && w > 0)
+                rt.sizeDelta = new Vector2(w, rt.sizeDelta.y);
+            if (heightInput != null && float.TryParse(heightInput.text, out float h) && h > 0)
+                rt.sizeDelta = new Vector2(rt.sizeDelta.x, h);
+
+            if (rotationInput != null && float.TryParse(rotationInput.text, out float r))
+                rt.localEulerAngles = new Vector3(0, 0, -r);
+
+            if (Vector2.Distance(oldPos, rt.anchoredPosition) > 0.01f)
             {
-                RectTransform rt = currentSelection.GetComponent<RectTransform>();
-                if (rt != null)
-                {
-                    // USER REQ: Bottom-right is (0,0). X increases left, Y increases up.
-                    // Paper is 600x600. Center is (0,0) in Unity.
-                    // Bottom-right in Unity is (300, -300).
-                    float userX = 300f - rt.anchoredPosition.x;
-                    float userY = rt.anchoredPosition.y + 300f;
-                    
-                    if(posXText) posXText.text = $"X: {userX:F1} mm";
-                    if(posYText) posYText.text = $"Y: {userY:F1} mm";
-                    if(widthText) widthText.text = $"W: {rt.rect.width:F1} mm";
-                    if(heightText) heightText.text = $"H: {rt.rect.height:F1} mm";
-                    
-                    float rot = rt.localEulerAngles.z;
-                    if (rot > 180) rot -= 360;
-                    if(rotationText) rotationText.text = $"Rotation: {-rot:F1}°";
-                }
+                RecordMove(rt, oldPos, rt.anchoredPosition);
+                OnObjectMoved();
             }
         }
 
@@ -990,12 +1014,7 @@ namespace PocoRender.UI
         private void UpdateMiniPreview()
         {
             if (miniModelViewer == null) return;
-            
-            // Ensure preview panel is active so Model3DViewer can initialize
-            if (miniPreviewPanel != null && !miniPreviewPanel.activeSelf)
-            {
-                miniPreviewPanel.SetActive(true);
-            }
+            if (miniPreviewPanel != null && !miniPreviewPanel.activeSelf) return;
 
             // 1. Setup 3D Container - Find existing by name to prevent accumulation
             if (miniDesignStage != null) Object.DestroyImmediate(miniDesignStage);

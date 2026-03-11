@@ -125,7 +125,10 @@ namespace PocoRender.UI.Modules
             RectTransform checkRect = itemCheck.GetComponent<RectTransform>();
             checkRect.anchorMin = new Vector2(0, 0.5f); checkRect.anchorMax = new Vector2(0, 0.5f);
             checkRect.sizeDelta = new Vector2(18, 18); checkRect.anchoredPosition = new Vector2(15, 0);
-            Image checkImg = itemCheck.AddComponent<Image>(); checkImg.color = UIFactory.COLOR_ACCENT_GREEN;
+            Image checkImg = itemCheck.AddComponent<Image>();
+            Sprite checkSprite = Resources.Load<Sprite>("EditIcons/p_check");
+            if (checkSprite != null) { checkImg.sprite = checkSprite; checkImg.color = Color.white; checkImg.preserveAspect = true; }
+            else { checkImg.color = UIFactory.COLOR_ACCENT_GREEN; }
             
             dd.itemText = itemText;
             itemToggle.targetGraphic = itemBgImg; itemToggle.graphic = checkImg;

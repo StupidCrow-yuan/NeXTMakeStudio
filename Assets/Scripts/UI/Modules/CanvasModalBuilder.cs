@@ -125,7 +125,10 @@ namespace PocoRender.UI.Modules
             GameObject itemCheck = UIFactory.CreateObject("ItemCheckmark", itemTemplate);
             itemCheck.GetComponent<RectTransform>().anchorMin = new Vector2(0, 0.5f); itemCheck.GetComponent<RectTransform>().anchorMax = new Vector2(0, 0.5f);
             itemCheck.GetComponent<RectTransform>().sizeDelta = new Vector2(20, 20); itemCheck.GetComponent<RectTransform>().anchoredPosition = new Vector2(15, 0);
-            itemCheck.AddComponent<Image>().color = UIFactory.COLOR_ACCENT_GREEN;
+            Image checkImg = itemCheck.AddComponent<Image>();
+            Sprite checkSprite = Resources.Load<Sprite>("EditIcons/p_check");
+            if (checkSprite != null) { checkImg.sprite = checkSprite; checkImg.color = Color.white; checkImg.preserveAspect = true; }
+            else { checkImg.color = UIFactory.COLOR_ACCENT_GREEN; }
             dd.itemText = itemText; itemToggle.targetGraphic = itemBgImg; itemToggle.graphic = itemCheck.GetComponent<Image>();
             template.SetActive(false);
 

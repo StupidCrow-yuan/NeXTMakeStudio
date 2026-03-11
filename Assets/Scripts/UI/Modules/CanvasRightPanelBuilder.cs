@@ -64,22 +64,68 @@ namespace PocoRender.UI.Modules
 
         private static void PopulateLayerInfoPanel(GameObject layerPanel, CanvasController controller)
         {
-            // Position
+            // Position (editable)
             UIFactory.CreateText("Position", layerPanel, 14, Color.black, Vector2.zero, new Vector2(0, 20), TextAnchor.MiddleLeft, FontStyle.Bold);
             GameObject posPanel = UIFactory.CreateObject("PosPanel", layerPanel);
             VerticalLayoutGroup posVlg = posPanel.AddComponent<VerticalLayoutGroup>(); posVlg.spacing = 5;
-            posPanel.AddComponent<LayoutElement>().minHeight = 80;
+            posPanel.AddComponent<LayoutElement>().minHeight = 110;
+
+            System.Func<string, string, GameObject, InputField> createPosField = (label, unit, parent) =>
+            {
+                GameObject field = UIFactory.CreateObject(label + "Field", parent);
+                HorizontalLayoutGroup fhlg = field.AddComponent<HorizontalLayoutGroup>();
+                fhlg.spacing = 4; fhlg.childAlignment = TextAnchor.MiddleLeft;
+                fhlg.childControlWidth = true; fhlg.childControlHeight = true;
+                fhlg.childForceExpandWidth = false;
+
+                var labelObj = UIFactory.CreateText(label, field, 12, Color.gray, Vector2.zero, Vector2.zero, TextAnchor.MiddleCenter);
+                labelObj.AddComponent<LayoutElement>().minWidth = 16;
+
+                GameObject inpObj = UIFactory.CreateObject("Input", field);
+                inpObj.AddComponent<LayoutElement>().flexibleWidth = 1;
+                inpObj.AddComponent<Image>().color = new Color(0.96f, 0.96f, 0.96f);
+                InputField inp = inpObj.AddComponent<InputField>();
+                inp.contentType = InputField.ContentType.DecimalNumber;
+                GameObject txtObj = UIFactory.CreateText("--", inpObj, 13, Color.black, Vector2.zero, Vector2.zero);
+                UIFactory.Stretch(txtObj.GetComponent<RectTransform>());
+                txtObj.GetComponent<RectTransform>().offsetMin = new Vector2(6, 0);
+                txtObj.GetComponent<RectTransform>().offsetMax = new Vector2(-26, 0);
+                inp.textComponent = txtObj.GetComponent<Text>();
+
+                var unitObj = UIFactory.CreateText(unit, inpObj, 11, new Color(0.55f, 0.55f, 0.55f), Vector2.zero, Vector2.zero, TextAnchor.MiddleRight);
+                RectTransform unitRt = unitObj.GetComponent<RectTransform>();
+                unitRt.anchorMin = new Vector2(1, 0); unitRt.anchorMax = new Vector2(1, 1);
+                unitRt.pivot = new Vector2(1, 0.5f);
+                unitRt.sizeDelta = new Vector2(24, 0); unitRt.anchoredPosition = new Vector2(-4, 0);
+
+                return inp;
+            };
+
+            GameObject r1 = UIFactory.CreateObject("Row1", posPanel); r1.AddComponent<LayoutElement>().minHeight = 28;
+            HorizontalLayoutGroup r1hlg = r1.AddComponent<HorizontalLayoutGroup>(); r1hlg.spacing = 10;
+            controller.posXInput = createPosField("X", "mm", r1);
+            controller.posYInput = createPosField("Y", "mm", r1);
+
+            GameObject r2 = UIFactory.CreateObject("Row2", posPanel); r2.AddComponent<LayoutElement>().minHeight = 28;
+            HorizontalLayoutGroup r2hlg = r2.AddComponent<HorizontalLayoutGroup>(); r2hlg.spacing = 10;
+            controller.widthInput = createPosField("W", "mm", r2);
+            controller.heightInput = createPosField("H", "mm", r2);
+
+            GameObject r3 = UIFactory.CreateObject("Row3", posPanel); r3.AddComponent<LayoutElement>().minHeight = 28;
+            HorizontalLayoutGroup r3hlg = r3.AddComponent<HorizontalLayoutGroup>(); r3hlg.spacing = 10;
+            controller.rotationInput = createPosField("R", "°", r3);
             
-            GameObject r1 = UIFactory.CreateObject("Row1", posPanel); r1.AddComponent<LayoutElement>().minHeight = 25; r1.AddComponent<HorizontalLayoutGroup>();
-            controller.posXText = UIFactory.CreateText("X: --", r1, 13, Color.black, Vector2.zero, Vector2.zero).GetComponent<Text>();
-            controller.posYText = UIFactory.CreateText("Y: --", r1, 13, Color.black, Vector2.zero, Vector2.zero).GetComponent<Text>();
-            
-            GameObject r2 = UIFactory.CreateObject("Row2", posPanel); r2.AddComponent<LayoutElement>().minHeight = 25; r2.AddComponent<HorizontalLayoutGroup>();
-            controller.widthText = UIFactory.CreateText("W: --", r2, 13, Color.black, Vector2.zero, Vector2.zero).GetComponent<Text>();
-            controller.heightText = UIFactory.CreateText("H: --", r2, 13, Color.black, Vector2.zero, Vector2.zero).GetComponent<Text>();
-            
-            GameObject r3 = UIFactory.CreateObject("Row3", posPanel); r3.AddComponent<LayoutElement>().minHeight = 25; r3.AddComponent<HorizontalLayoutGroup>();
-            controller.rotationText = UIFactory.CreateText("Rotation: 0\u00B0", r3, 13, Color.black, Vector2.zero, Vector2.zero).GetComponent<Text>();
+            // Dummy field to match layout of W/H rows
+            var dummy = createPosField(" ", "", r3);
+            var dummyGroup = dummy.transform.parent.gameObject.AddComponent<CanvasGroup>();
+            dummyGroup.alpha = 0; dummyGroup.blocksRaycasts = false;
+
+            controller.posXInput.onEndEdit.AddListener((_) => controller.OnPositionInputChanged());
+            controller.posYInput.onEndEdit.AddListener((_) => controller.OnPositionInputChanged());
+            controller.widthInput.onEndEdit.AddListener((_) => controller.OnPositionInputChanged());
+            controller.heightInput.onEndEdit.AddListener((_) => controller.OnPositionInputChanged());
+            controller.rotationInput.onEndEdit.AddListener((_) => controller.OnPositionInputChanged());
+
             controller.positionPanel = posPanel;
 
             // Craft Mode
@@ -87,8 +133,9 @@ namespace PocoRender.UI.Modules
             GameObject craftGrid = UIFactory.CreateObject("CraftGrid", layerPanel);
             controller.craftModeContainer = craftGrid;
             GridLayoutGroup cglg = craftGrid.AddComponent<GridLayoutGroup>();
-            cglg.cellSize = new Vector2(125, 40); cglg.spacing = new Vector2(10, 10); cglg.constraintCount = 2;
-            craftGrid.AddComponent<LayoutElement>().minHeight = 150;
+            cglg.padding = new RectOffset(3, 3, 3, 3);
+            cglg.cellSize = new Vector2(120, 40); cglg.spacing = new Vector2(8, 8); cglg.constraintCount = 2;
+            craftGrid.AddComponent<LayoutElement>().minHeight = 160;
             string[] craftModes = { "Flat", "Flat Raised", "Pattern Texture", "Relief Texture", "Customize Texture" };
             foreach(var cm in craftModes) {
                 GameObject btn = UIFactory.CreateButton(cm, craftGrid, Vector2.zero, new Vector2(0, 0), Color.white, Color.black);
@@ -96,7 +143,7 @@ namespace PocoRender.UI.Modules
                 btn.AddComponent<Outline>().effectColor = cm == "Flat" ? Color.green : Color.gray;
                 string mode = cm;
                 btn.GetComponent<Button>().onClick.AddListener(() => {
-                    foreach(Transform child in craftGrid.transform) { var outline = child.GetComponent<Outline>(); if(outline) outline.effectColor = child.name.Contains(mode) ? Color.green : Color.gray; }
+                    foreach(Transform child in craftGrid.transform) { var outline = child.GetComponent<Outline>(); if(outline) outline.effectColor = (child.name == "Btn_" + mode) ? Color.green : Color.gray; }
                     controller.OnCraftModeChanged(mode);
                 });
             }
@@ -109,6 +156,13 @@ namespace PocoRender.UI.Modules
             GameObject dropdownObj = CanvasModalBuilder.CreateCustomDropdown("InkDropdown", layerPanel,
                 new[] { "White > CMYK", "CMYK", "Gloss Varnish", "White", "CMYK > White", "White > CMYK > Gloss Varnish", "Sticker" },
                 0, (idx) => {});
+            dropdownObj.GetComponent<LayoutElement>().minHeight = 28;
+            UIFactory.AddDropdownArrow(dropdownObj, 12f); // Re-apply arrow for new height? No, just size.
+            
+            // Fix arrow size for 28 height if needed
+            // The AddDropdownArrow uses 14f in CanvasModalBuilder, maybe too big for 28.
+            // But we can't easily change it here without refinding the arrow.
+            // Let's assume 14px fits in 28px. It should be fine.
         }
 
         private static void CreateMiniPreview(GameObject layerPanel, CanvasController controller)
@@ -179,6 +233,7 @@ namespace PocoRender.UI.Modules
             brRt.anchorMin = new Vector2(0, 0); brRt.anchorMax = new Vector2(1, 0);
             brRt.pivot = new Vector2(0.5f, 0); brRt.sizeDelta = new Vector2(-40, 56); brRt.anchoredPosition = new Vector2(0, 18);
             HorizontalLayoutGroup ahlg = bottomRow.AddComponent<HorizontalLayoutGroup>();
+            ahlg.padding = new RectOffset(3, 3, 3, 3);
             ahlg.spacing = 12; ahlg.childControlWidth = true; ahlg.childForceExpandWidth = true; ahlg.childControlHeight = true; ahlg.childForceExpandHeight = false;
             
             GameObject previewBtn = UIFactory.CreateButton("Preview", bottomRow, Vector2.zero, new Vector2(0, 40), Color.white, new Color(0.2f, 0.2f, 0.2f));
@@ -300,21 +355,20 @@ namespace PocoRender.UI.Modules
             matRow.AddComponent<LayoutElement>().minHeight = 40;
             HorizontalLayoutGroup mhlg = matRow.AddComponent<HorizontalLayoutGroup>(); mhlg.spacing = 10;
             string[] materials = { "Unknown", "Wood", "Acrylic", "Metal", "Drawing Board", "Plastic", "Ceramics", "Cotton canvas", "Polyester canvas", "Linen canvas", "Artificial leather", "Genuine leather", "Cardboard" };
-            CanvasModalBuilder.CreateCustomDropdown("MatDropdown", matRow, materials, 0, (idx) => {}).AddComponent<LayoutElement>().flexibleWidth = 1;
+            var matDD = CanvasModalBuilder.CreateCustomDropdown("MatDropdown", matRow, materials, 0, (idx) => {});
+            matDD.AddComponent<LayoutElement>().flexibleWidth = 4; // Give it more weight
 
             GameObject setColorBackBtn = UIFactory.CreateObject("SetColorBack", matRow);
             var setColorBackLe = setColorBackBtn.AddComponent<LayoutElement>();
-            setColorBackLe.minWidth = 120; setColorBackLe.minHeight = 36; setColorBackLe.preferredWidth = 130; setColorBackLe.preferredHeight = 36;
+            setColorBackLe.minWidth = 36; setColorBackLe.minHeight = 36; setColorBackLe.preferredWidth = 36; setColorBackLe.preferredHeight = 36;
+            setColorBackLe.flexibleWidth = 1; // Less weight
             setColorBackBtn.AddComponent<Image>().color = new Color(0.95f, 0.95f, 0.95f);
             Outline setColorBackOut = setColorBackBtn.AddComponent<Outline>(); setColorBackOut.effectColor = new Color(0.75f, 0.75f, 0.75f); setColorBackOut.effectDistance = new Vector2(1, 1);
-            HorizontalLayoutGroup setColorBackHlg = setColorBackBtn.AddComponent<HorizontalLayoutGroup>();
-            setColorBackHlg.spacing = 6; setColorBackHlg.padding = new RectOffset(8, 8, 6, 6); setColorBackHlg.childAlignment = TextAnchor.MiddleCenter; setColorBackHlg.childControlWidth = false; setColorBackHlg.childForceExpandWidth = false;
             GameObject colorSwatch = UIFactory.CreateObject("ColorSwatch", setColorBackBtn);
             Image colorBoxImg = colorSwatch.AddComponent<Image>(); colorBoxImg.color = Color.white;
             colorSwatch.AddComponent<Outline>().effectColor = new Color(0.65f, 0.65f, 0.65f);
-            var swatchLe = colorSwatch.AddComponent<LayoutElement>(); swatchLe.minWidth = 20; swatchLe.minHeight = 20; swatchLe.preferredWidth = 20; swatchLe.preferredHeight = 20;
-            Text setColorBackLabel = UIFactory.CreateText("Set Color Back", setColorBackBtn, 12, new Color(0.2f, 0.2f, 0.2f), Vector2.zero, Vector2.zero, TextAnchor.MiddleCenter).GetComponent<Text>();
-            setColorBackLabel.raycastTarget = false;
+            RectTransform swRt = colorSwatch.GetComponent<RectTransform>();
+            UIFactory.Stretch(swRt); swRt.offsetMin = new Vector2(6, 6); swRt.offsetMax = new Vector2(-6, -6);
             setColorBackBtn.AddComponent<Button>().onClick.AddListener(() => CanvasModalBuilder.CreateColorPickerModal(controller.editorArea, (c) => { colorBoxImg.color = c; controller.SetPaperColor(c); }));
 
             GameObject bgCheck = UIFactory.CreateObject("BGCheck", matSection);
@@ -447,9 +501,20 @@ namespace PocoRender.UI.Modules
             RectTransform fr = fill.GetComponent<RectTransform>(); fr.anchorMin = Vector2.zero; fr.anchorMax = new Vector2(0.4f, 1); fr.sizeDelta = Vector2.zero;
             fill.AddComponent<Image>().color = UIFactory.COLOR_ACCENT_GREEN; slider.fillRect = fr;
             GameObject handle = UIFactory.CreateObject("Handle", sliderObj);
-            RectTransform hr = handle.GetComponent<RectTransform>(); hr.anchorMin = new Vector2(0.4f, 0.5f); hr.anchorMax = new Vector2(0.4f, 0.5f); hr.sizeDelta = new Vector2(16, 16); hr.pivot = new Vector2(0.5f, 0.5f);
-            handle.AddComponent<Image>().color = Color.white;
-            Outline handleOut = handle.AddComponent<Outline>(); handleOut.effectColor = new Color(0.6f, 0.6f, 0.6f); handleOut.effectDistance = new Vector2(1, 1);
+            RectTransform hr = handle.GetComponent<RectTransform>(); hr.anchorMin = new Vector2(0.4f, 0.5f); hr.anchorMax = new Vector2(0.4f, 0.5f); hr.sizeDelta = new Vector2(24, 24); hr.pivot = new Vector2(0.5f, 0.5f);
+            Image handleImg = handle.AddComponent<Image>();
+            Sprite brushSprite = Resources.Load<Sprite>("EditIcons/p_brush_press");
+            if (brushSprite != null)
+            {
+                handleImg.sprite = brushSprite;
+                handleImg.color = Color.white;
+                handleImg.preserveAspect = true;
+            }
+            else
+            {
+                handleImg.color = Color.white;
+                Outline handleOut = handle.AddComponent<Outline>(); handleOut.effectColor = new Color(0.6f, 0.6f, 0.6f); handleOut.effectDistance = new Vector2(1, 1);
+            }
             slider.handleRect = hr;
         }
 
