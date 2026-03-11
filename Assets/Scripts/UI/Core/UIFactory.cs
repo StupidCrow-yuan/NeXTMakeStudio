@@ -245,7 +245,10 @@ namespace PocoRender.UI.Core
                 }
             }
             tex.Apply();
-            return Sprite.Create(tex, new Rect(0, 0, texWidth, texHeight), new Vector2(0.5f, 0.5f));
+            // Create sprite with 9-slice borders
+            // Border order: Left, Bottom, Right, Top
+            Vector4 border = new Vector4(r, r, r, r);
+            return Sprite.Create(tex, new Rect(0, 0, texWidth, texHeight), new Vector2(0.5f, 0.5f), 100.0f, 0, SpriteMeshType.FullRect, border);
         }
     }
 }
