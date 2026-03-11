@@ -1,4 +1,4 @@
-﻿using UnityEngine;
+using UnityEngine;
 using UnityEngine.UI;
 using PocoRender.Core;
 
@@ -27,6 +27,9 @@ namespace PocoRender.UI
         private float currentYaw = 0f; // Facing North from South
         private float currentPitch = 35f;
         private float initialFocusDistance = 15f;
+
+        private int renderFramesRemaining = 0;
+        private const int RENDER_BURST_FRAMES = 3;
 
         void Start()
         {
@@ -74,10 +77,22 @@ namespace PocoRender.UI
                 }
             }
 
+            // Check if we can reuse existing RT
+            if (renderTexture != null && renderTexture.IsCreated() && 
+                renderTexture.width == width && renderTexture.height == height)
+            {
+                // Just ensure it's assigned to targetImage and return
+                if (targetImage != null && targetImage.texture != renderTexture)
+                {
+                    targetImage.texture = renderTexture;
+                }
+                return; // Nothing changed, skip expensive rebuild
+            }
+
             // Create RenderTexture with fixed dimensions
             if (renderTexture != null) renderTexture.Release();
             renderTexture = new RenderTexture(width, height, 24);
-            renderTexture.antiAliasing = 8; 
+            renderTexture.antiAliasing = 4; // Reduced from 8 to 4 for performance 
 
             // Reuse existing camera if available; only create a new one on first init
             bool isReinit = (modelCamera != null);
@@ -162,11 +177,11 @@ namespace PocoRender.UI
                 Debug.LogWarning("[Model3DViewer] targetImage未设置！");
             }
             
-            // 确保相机启用
+            // Disable automatic rendering — we render on demand via RequestRender()
             if (modelCamera != null)
             {
-                modelCamera.enabled = true;
-                Debug.Log("[Model3DViewer] 相机已启用");
+                modelCamera.enabled = false;
+                Debug.Log("[Model3DViewer] 相机已设置为按需渲染模式");
             }
 
             // 调整相机位置以查看模型 (only on first init, not reinit)
@@ -185,6 +200,8 @@ namespace PocoRender.UI
                     FocusOnModel();
                 }
             }
+            
+            RequestRender();
         }
 
         /// <summary>
@@ -283,6 +300,8 @@ namespace PocoRender.UI
             modelCamera.fieldOfView = Mathf.Clamp(requiredFOV, 30f, 60f);
             
             Debug.Log($"[Model3DViewer] 相机设置完成 - 位置: {modelCamera.transform.position}, 距离: {initialFocusDistance:F2}, FOV: {modelCamera.fieldOfView:F2}");
+            
+            RequestRender();
         }
         
         /// <summary>
@@ -471,6 +490,8 @@ namespace PocoRender.UI
             Quaternion rotation = Quaternion.Euler(currentPitch, currentYaw, 0);
             modelCamera.transform.position = center + rotation * new Vector3(0, 0, -distance);
             modelCamera.transform.LookAt(center);
+            
+            RequestRender();
         }
 
         /// <summary>
@@ -490,6 +511,8 @@ namespace PocoRender.UI
             Quaternion rotation = Quaternion.Euler(currentPitch, currentYaw, 0);
             modelCamera.transform.position = center + rotation * new Vector3(0, 0, -distance);
             modelCamera.transform.LookAt(center);
+            
+            RequestRender();
         }
 
         /// <summary>
@@ -498,16 +521,26 @@ namespace PocoRender.UI
         public void ResetView()
         {
             currentYaw = 0f;
-            currentPitch = 35f; // USER REQ: Match tilt from reference image
+            currentPitch = 35f;
             FocusOnModel();
+            RequestRender();
+        }
+
+        /// <summary>
+        /// Request the camera to render for a few frames.
+        /// Call this whenever the scene changes (rotation, zoom, model update, light move, etc.)
+        /// </summary>
+        public void RequestRender(int frames = -1)
+        {
+            renderFramesRemaining = Mathf.Max(renderFramesRemaining, frames > 0 ? frames : RENDER_BURST_FRAMES);
         }
 
         void LateUpdate()
         {
-            // 确保相机每帧都渲染（即使没有模型，也渲染背景）
-            if (modelCamera != null && modelCamera.enabled && renderTexture != null)
+            if (renderFramesRemaining > 0 && modelCamera != null && renderTexture != null)
             {
                 modelCamera.Render();
+                renderFramesRemaining--;
             }
         }
         

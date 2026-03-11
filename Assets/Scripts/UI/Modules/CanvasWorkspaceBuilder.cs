@@ -46,6 +46,7 @@ namespace PocoRender.UI.Modules
             Dropdown dd = ddObj.AddComponent<Dropdown>();
             dd.targetGraphic = ddImg;
             controller.zoomDropdown = dd;
+            UIFactory.AddDropdownArrow(ddObj, 12f);
             
             // Dropdown Template
             GameObject template = UIFactory.CreateObject("Template", ddObj);
@@ -131,6 +132,7 @@ namespace PocoRender.UI.Modules
             template.SetActive(false);
 
             Text label = UIFactory.CreateText("100%", ddObj, 12, Color.black, Vector2.zero, Vector2.zero).GetComponent<Text>();
+            label.rectTransform.offsetMax = new Vector2(-20, 0);
             dd.captionText = label;
             
             var options = new System.Collections.Generic.List<string>{

@@ -9,54 +9,42 @@ namespace PocoRender.Editor
         [MenuItem("PocoRender/Fix Template Images (Convert to Sprite)")]
         public static void FixTemplateImages()
         {
-            string folderPath = "Assets/Resources/CanVas/Templates";
-            
-            if (!Directory.Exists(folderPath))
+            string[] folders = {
+                "Assets/Resources/CanVas/Templates",
+                "Assets/Resources/EditIcons"
+            };
+
+            int totalCount = 0;
+            foreach (string folderPath in folders)
             {
-                Debug.LogError($"[TemplateTools] Directory not found: {folderPath}");
-                return;
-            }
-
-            string[] guids = AssetDatabase.FindAssets("t:Texture", new[] { folderPath });
-            int count = 0;
-
-            foreach (string guid in guids)
-            {
-                string path = AssetDatabase.GUIDToAssetPath(guid);
-                TextureImporter importer = AssetImporter.GetAtPath(path) as TextureImporter;
-
-                if (importer != null)
+                if (!Directory.Exists(folderPath))
                 {
-                    bool changed = false;
+                    Debug.LogWarning($"[TemplateTools] Directory not found, skipping: {folderPath}");
+                    continue;
+                }
 
-                    // 1. Ensure it's a Sprite
-                    if (importer.textureType != TextureImporterType.Sprite)
+                string[] guids = AssetDatabase.FindAssets("t:Texture", new[] { folderPath });
+
+                foreach (string guid in guids)
+                {
+                    string path = AssetDatabase.GUIDToAssetPath(guid);
+                    TextureImporter importer = AssetImporter.GetAtPath(path) as TextureImporter;
+
+                    if (importer != null && importer.textureType != TextureImporterType.Sprite)
                     {
                         importer.textureType = TextureImporterType.Sprite;
-                        changed = true;
-                    }
-
-                    // 2. Ensure it's placed in UI correctly (optional but good for UI)
-                    // importer.spriteImportMode = SpriteImportMode.Single; 
-
-                    if (changed)
-                    {
                         importer.SaveAndReimport();
-                        count++;
+                        totalCount++;
                         Debug.Log($"[TemplateTools] Converted to Sprite: {path}");
                     }
                 }
             }
 
-            if (count > 0)
-            {
-                Debug.Log($"[TemplateTools] Successfully converted {count} images to Sprite format.");
-            }
+            if (totalCount > 0)
+                Debug.Log($"[TemplateTools] Successfully converted {totalCount} images to Sprite format.");
             else
-            {
-                Debug.Log("[TemplateTools] All images in Templates folder are already Sprites.");
-            }
-            
+                Debug.Log("[TemplateTools] All images are already Sprites.");
+
             AssetDatabase.Refresh();
         }
     }

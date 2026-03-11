@@ -65,6 +65,7 @@ namespace PocoRender.UI.Modules
             Image ddImg = dropdownObj.AddComponent<Image>(); ddImg.color = new Color(0.95f, 0.95f, 0.95f);
             Dropdown dd = dropdownObj.AddComponent<Dropdown>();
             dd.targetGraphic = ddImg;
+            UIFactory.AddDropdownArrow(dropdownObj, 14f);
             
             GameObject template = UIFactory.CreateObject("Template", dropdownObj);
             template.AddComponent<CanvasGroup>();
@@ -130,7 +131,9 @@ namespace PocoRender.UI.Modules
 
             Text label = UIFactory.CreateText(options[defaultIdx], dropdownObj, 12, Color.black, Vector2.zero, Vector2.zero).GetComponent<Text>();
             label.alignment = TextAnchor.MiddleLeft;
-            label.rectTransform.anchorMin = Vector2.zero; label.rectTransform.anchorMax = Vector2.one; label.rectTransform.offsetMin = new Vector2(10, 0);
+            label.rectTransform.anchorMin = Vector2.zero; label.rectTransform.anchorMax = Vector2.one;
+            label.rectTransform.offsetMin = new Vector2(10, 0);
+            label.rectTransform.offsetMax = new Vector2(-28, 0);
             dd.captionText = label;
             dd.AddOptions(options.ToList());
             dd.value = defaultIdx;

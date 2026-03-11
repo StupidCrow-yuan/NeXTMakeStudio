@@ -870,6 +870,17 @@ namespace PocoRender.UI
             }
         }
 
+        /// <summary>
+        /// Called by ObjectManipulator after dragging to update mini preview position.
+        /// </summary>
+        public void OnObjectMoved()
+        {
+            if (currentSelection != null && miniPreviewPanel != null && miniPreviewPanel.activeSelf)
+            {
+                UpdateMiniPreview();
+            }
+        }
+
         public void OnCraftModeChanged(string mode)
         {
             if (currentSelection != null)
@@ -1193,6 +1204,7 @@ namespace PocoRender.UI
             mle.orbitRadius = 2.0f;
             mle.orbitHeight = 8f;
             mle.orbitSpeed = 0.4f;
+            mle.SetTargetViewer(miniModelViewer);
 
             miniModelViewer.modelContainer = miniDesignStage;
             miniModelViewer.SetModel(miniDesignStage);
@@ -1209,6 +1221,8 @@ namespace PocoRender.UI
             RenderSettings.ambientSkyColor = new Color(0.3f, 0.3f, 0.3f, 1f);
             RenderSettings.ambientEquatorColor = new Color(0.25f, 0.25f, 0.25f, 1f);
             RenderSettings.ambientGroundColor = new Color(0.2f, 0.2f, 0.2f, 1f);
+            
+            miniModelViewer.RequestRender(5);
         }
 
         public void ZoomToFit()
@@ -1338,25 +1352,26 @@ namespace PocoRender.UI
             rotationHandle.transform.SetParent(currentSelection.transform, false);
             
             Image img = rotationHandle.AddComponent<Image>();
-            img.color = Color.green;
+            Sprite rotateSprite = Resources.Load<Sprite>("EditIcons/p_rotate_img");
+            if (rotateSprite != null)
+            {
+                img.sprite = rotateSprite;
+                img.color = Color.white;
+                img.preserveAspect = true;
+            }
+            else
+            {
+                img.color = Color.green;
+            }
             
             RectTransform rt = rotationHandle.GetComponent<RectTransform>();
-            rt.sizeDelta = new Vector2(20, 20);
+            rt.sizeDelta = new Vector2(24, 24);
             float yPos = -(currentSelection.GetComponent<RectTransform>().rect.height / 2f) - 30f;
             rt.anchoredPosition = new Vector2(0, yPos);
             
             RotationHandler handler = rotationHandle.AddComponent<RotationHandler>();
             handler.target = currentSelection.GetComponent<RectTransform>();
             handler.controller = this;
-            
-            GameObject icon = new GameObject("Icon");
-            icon.transform.SetParent(rotationHandle.transform, false);
-            Text t = icon.AddComponent<Text>();
-            t.text = "⟳";
-            t.alignment = TextAnchor.MiddleCenter;
-            t.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
-            t.color = Color.white;
-            t.rectTransform.sizeDelta = new Vector2(20, 20);
         }
 
         private void DestroyRotationHandle()
@@ -1374,31 +1389,54 @@ namespace PocoRender.UI
         }
     }
 
-    // Orbiting spotlight that aims STRAIGHT DOWN so the bright spot moves across the surface.
+    /// <summary>
+    /// Orbiting spotlight that aims straight down. Updates at a low frequency
+    /// and triggers on-demand rendering to avoid continuous GPU load.
+    /// </summary>
     public class MovingLightEffect : MonoBehaviour
     {
-        public float surfaceY = 0.06f; // Y of the content surface in parent local space
+        public float surfaceY = 0.06f;
         public float orbitRadius = 2f;
         public float orbitHeight = 12f;
         public float orbitSpeed = 0.4f;
-        private float startTime;
 
-        void Start() { startTime = Time.time; }
+        [Tooltip("How many times per second the light updates and requests a render")]
+        public float updatesPerSecond = 8f;
+
+        private float startTime;
+        private float nextUpdateTime;
+        private Model3DViewer targetViewer;
+
+        void Start()
+        {
+            startTime = Time.time;
+            targetViewer = GetComponentInParent<Model3DViewer>();
+            if (targetViewer == null)
+                targetViewer = FindObjectOfType<Model3DViewer>();
+        }
+
+        public void SetTargetViewer(Model3DViewer viewer)
+        {
+            targetViewer = viewer;
+        }
 
         void Update()
         {
+            if (Time.time < nextUpdateTime) return;
+            nextUpdateTime = Time.time + (updatesPerSecond > 0 ? 1f / updatesPerSecond : 0.125f);
+
             float t = (Time.time - startTime) * orbitSpeed;
-            // Elliptical orbit path so light sweeps across different parts of the image
             float x = Mathf.Sin(t) * orbitRadius;
             float z = Mathf.Cos(t * 0.73f) * orbitRadius * 0.85f;
             transform.localPosition = new Vector3(x, orbitHeight, z);
-            // Aim at the surface point DIRECTLY BELOW the light.
-            // This makes the bright spot move with the light across the image.
+
             if (transform.parent != null)
             {
                 Vector3 groundBelow = transform.parent.TransformPoint(new Vector3(x, surfaceY, z));
                 transform.LookAt(groundBelow);
             }
+
+            if (targetViewer != null) targetViewer.RequestRender(1);
         }
     }
 }

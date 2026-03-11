@@ -172,9 +172,9 @@ namespace PocoRender.UI
             }
             else if (modelObject != null)
             {
-                // 旋转物体本身（用于其他 3D 场景）
                 modelObject.transform.Rotate(Vector3.up, -deltaX, Space.World);
                 modelObject.transform.Rotate(Vector3.right, deltaY, Space.Self);
+                if (modelViewer != null) modelViewer.RequestRender();
             }
         }
 
@@ -191,6 +191,7 @@ namespace PocoRender.UI
             else if (modelObject != null)
             {
                 modelObject.transform.localScale = Vector3.one * zoom;
+                if (modelViewer != null) modelViewer.RequestRender();
             }
         }
 
@@ -205,6 +206,7 @@ namespace PocoRender.UI
                 position.x += deltaX;
                 position.y += deltaY;
                 modelObject.transform.position = position;
+                if (modelViewer != null) modelViewer.RequestRender();
             }
         }
 
@@ -224,6 +226,7 @@ namespace PocoRender.UI
             if (modelViewer != null)
             {
                 modelViewer.ResetView();
+                modelViewer.RequestRender();
             }
         }
 

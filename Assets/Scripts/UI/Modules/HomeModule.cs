@@ -1016,9 +1016,11 @@ namespace PocoRender.UI.Modules
                 Image ddBg = ddObj.AddComponent<Image>(); ddBg.color = new Color(0.95f, 0.95f, 0.95f);
                 
                 Dropdown dd = ddObj.AddComponent<Dropdown>();
+                UIFactory.AddDropdownArrow(ddObj, 14f);
                 GameObject labelObj = UIFactory.CreateText("Option", ddObj, 14, Color.black, Vector2.zero, Vector2.zero);
                 UIFactory.Stretch(labelObj.GetComponent<RectTransform>());
                 labelObj.GetComponent<RectTransform>().offsetMin = new Vector2(10, 0);
+                labelObj.GetComponent<RectTransform>().offsetMax = new Vector2(-28, 0);
                 dd.captionText = labelObj.GetComponent<Text>();
                 
                 // Template (needed for Dropdown to work)

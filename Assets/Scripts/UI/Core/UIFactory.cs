@@ -1,4 +1,4 @@
-﻿using UnityEngine;
+using UnityEngine;
 using UnityEngine.UI;
 
 namespace PocoRender.UI.Core
@@ -153,6 +153,29 @@ namespace PocoRender.UI.Core
             cr.sizeDelta = new Vector2(40, 40); cr.anchoredPosition = new Vector2(-30, -30);
             check.SetActive(false);
             return card;
+        }
+
+        /// <summary>
+        /// Adds a dropdown arrow icon to the right side of a Dropdown object.
+        /// Call after adding the Dropdown component.
+        /// </summary>
+        public static void AddDropdownArrow(GameObject dropdownObj, float arrowSize = 16f)
+        {
+            Sprite arrowSprite = Resources.Load<Sprite>("EditIcons/p_pulldown_arrow");
+            if (arrowSprite == null) return;
+
+            GameObject arrow = CreateObject("Arrow", dropdownObj);
+            RectTransform art = arrow.GetComponent<RectTransform>();
+            art.anchorMin = new Vector2(1, 0.5f);
+            art.anchorMax = new Vector2(1, 0.5f);
+            art.sizeDelta = new Vector2(arrowSize, arrowSize);
+            art.anchoredPosition = new Vector2(-arrowSize * 0.5f - 6f, 0);
+
+            Image arrowImg = arrow.AddComponent<Image>();
+            arrowImg.sprite = arrowSprite;
+            arrowImg.color = new Color(0.3f, 0.3f, 0.3f);
+            arrowImg.preserveAspect = true;
+            arrowImg.raycastTarget = false;
         }
 
         public static GameObject CreateModal(string title, Vector2 size)

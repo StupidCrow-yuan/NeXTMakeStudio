@@ -1,4 +1,4 @@
-﻿using UnityEngine;
+using UnityEngine;
 using UnityEngine.EventSystems;
 
 namespace PocoRender.UI
@@ -69,6 +69,7 @@ namespace PocoRender.UI
                 if (Vector2.Distance(dragStartPos, rectTransform.anchoredPosition) > 0.01f)
                 {
                     canvasController.RecordMove(rectTransform, dragStartPos, rectTransform.anchoredPosition);
+                    canvasController.OnObjectMoved();
                 }
             }
         }
