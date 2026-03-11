@@ -215,6 +215,38 @@ namespace PocoRender.UI.Core
 
             return content;
         }
+
+        /// <summary>
+        /// Creates a sprite with rounded corners (white fill). Used for dialog panels.
+        /// </summary>
+        public static Sprite CreateRoundedRectSprite(int texWidth = 128, int texHeight = 128, int cornerRadius = 24)
+        {
+            Texture2D tex = new Texture2D(texWidth, texHeight);
+            tex.filterMode = FilterMode.Bilinear;
+            float r = Mathf.Min(cornerRadius, texWidth / 2f, texHeight / 2f);
+            for (int y = 0; y < texHeight; y++)
+            {
+                for (int x = 0; x < texWidth; x++)
+                {
+                    float px = x + 0.5f;
+                    float py = y + 0.5f;
+                    bool inside = false;
+                    if (px >= r && px <= texWidth - r)
+                        inside = true;
+                    else if (py >= r && py <= texHeight - r)
+                        inside = true;
+                    else
+                    {
+                        float dx = (px < r) ? (r - px) : (px > texWidth - r ? px - (texWidth - r) : 0);
+                        float dy = (py < r) ? (r - py) : (py > texHeight - r ? py - (texHeight - r) : 0);
+                        inside = (dx * dx + dy * dy) <= (r * r);
+                    }
+                    tex.SetPixel(x, y, inside ? Color.white : new Color(1, 1, 1, 0));
+                }
+            }
+            tex.Apply();
+            return Sprite.Create(tex, new Rect(0, 0, texWidth, texHeight), new Vector2(0.5f, 0.5f));
+        }
     }
 }
 

@@ -34,10 +34,10 @@ namespace PocoRender.UI.Modules
             publishButton.onClick.RemoveAllListeners();
             publishButton.onClick.AddListener(OnPublish);
 
-            PopulateDropdown(categoryDropdown, new[] { "Select Category", "Gifts", "Blended Crafts", "Home & Living", "Art Decor", "Digital Accessories", "Pet Supplies", "Toys & Games" });
-            PopulateDropdown(themeDropdown, new[] { "Select Theme", "Modern", "Vintage", "Minimalist", "Abstract", "Nature", "Holiday" });
+            PopulateDropdown(categoryDropdown, new[] { "Select a category.", "Gifts", "Blended Crafts", "Home & Living", "Art Decor", "Digital Accessories", "Pet Supplies", "Toys & Games" });
+            PopulateDropdown(themeDropdown, new[] { "Select a theme.", "Modern", "Vintage", "Minimalist", "Abstract", "Nature", "Holiday" });
             PopulateDropdown(styleDropdown, new[] { "Select Style", "Flat", "Relief", "Textured" });
-            PopulateDropdown(licenseDropdown, new[] { "Select License", "Standard License", "Extended License", "Creative Commons" });
+            PopulateDropdown(licenseDropdown, new[] { "Select a license", "Standard License", "Extended License", "Creative Commons" });
 
             CapturePreview();
         }

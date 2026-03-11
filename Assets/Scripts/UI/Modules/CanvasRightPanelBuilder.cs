@@ -156,8 +156,9 @@ namespace PocoRender.UI.Modules
             GameObject dropdownObj = CanvasModalBuilder.CreateCustomDropdown("InkDropdown", layerPanel,
                 new[] { "White > CMYK", "CMYK", "Gloss Varnish", "White", "CMYK > White", "White > CMYK > Gloss Varnish", "Sticker" },
                 0, (idx) => {});
-            dropdownObj.GetComponent<LayoutElement>().minHeight = 28;
-            UIFactory.AddDropdownArrow(dropdownObj, 12f); // Re-apply arrow for new height? No, just size.
+            dropdownObj.GetComponent<LayoutElement>().minHeight = 40; // Match Material dropdown height
+            dropdownObj.GetComponent<RectTransform>().sizeDelta = new Vector2(0, 40); // Explicitly set height since VLG controlHeight is false
+            UIFactory.AddDropdownArrow(dropdownObj, 14f); // Re-apply arrow for new height? No, just size.
             
             // Fix arrow size for 28 height if needed
             // The AddDropdownArrow uses 14f in CanvasModalBuilder, maybe too big for 28.
@@ -504,6 +505,16 @@ namespace PocoRender.UI.Modules
             RectTransform hr = handle.GetComponent<RectTransform>(); hr.anchorMin = new Vector2(0.4f, 0.5f); hr.anchorMax = new Vector2(0.4f, 0.5f); hr.sizeDelta = new Vector2(24, 24); hr.pivot = new Vector2(0.5f, 0.5f);
             Image handleImg = handle.AddComponent<Image>();
             Sprite brushSprite = Resources.Load<Sprite>("EditIcons/p_brush_press");
+            if (brushSprite == null)
+            {
+                // Fallback: try loading as Texture2D if Sprite conversion hasn't run
+                Texture2D tex = Resources.Load<Texture2D>("EditIcons/p_brush_press");
+                if (tex != null)
+                {
+                    brushSprite = Sprite.Create(tex, new Rect(0, 0, tex.width, tex.height), new Vector2(0.5f, 0.5f));
+                }
+            }
+
             if (brushSprite != null)
             {
                 handleImg.sprite = brushSprite;
