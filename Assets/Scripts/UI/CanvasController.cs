@@ -170,6 +170,16 @@ namespace PocoRender.UI
             currentOutline.effectColor = Color.green;
             currentOutline.effectDistance = new Vector2(2, -2);
             currentOutline.enabled = true;
+            
+            // Fix: Ensure outline respects sprite shape if it's an Image
+            Image selImg = currentSelection.GetComponent<Image>();
+            if (selImg != null)
+            {
+                // Note: Unity's built-in Outline component always draws a rectangle for UI elements.
+                // To support irregular shapes, we would need a custom shader or 3rd party asset.
+                // For now, we will stick to rectangular selection as per Unity UI standard,
+                // but we can adjust the RectTransform to fit the content better if needed.
+            }
 
             if (contextToolbar != null) contextToolbar.SetActive(true);
             CreateRotationHandle();
@@ -1042,6 +1052,9 @@ namespace PocoRender.UI
             // Add white background as first child to ensure complete coverage
             GameObject bgObj = UIFactory.CreateObject("PaperBackground", worldCanvas);
             UIFactory.Stretch(bgObj.GetComponent<RectTransform>());
+            // Fix: Use black background for transparency check, or white if simulating paper.
+            // Since user reported "black background" issues with transparency, let's make sure
+            // the paper background is clearly white to represent the substrate.
             bgObj.AddComponent<Image>().color = Color.white;
 
             // USER REQ: Only show current selection in mini preview
@@ -1081,7 +1094,8 @@ namespace PocoRender.UI
                     quad.name = "ContentQuad";
                     quad.transform.SetParent(container.transform, false);
                     quad.transform.localRotation = Quaternion.Euler(90, 0, 0);
-                    quad.transform.localPosition = new Vector3(0, 0.07f, 0); // Slightly above paper
+                    // Increase Y offset to 0.1f to strictly avoid z-fighting/occlusion with Paper (0.05f)
+                    quad.transform.localPosition = new Vector3(0, 0.1f, 0); 
 
                     // Size: convert UI pixel size to world units (paper is 6 units for 600px)
                     float worldScale = 6f / 600f;
@@ -1093,10 +1107,11 @@ namespace PocoRender.UI
                     if (selRt != null)
                     {
                         Vector2 pos = selRt.anchoredPosition;
+                        
                         quad.transform.localPosition = new Vector3(
                             pos.x * worldScale,
-                            0.07f,
-                            pos.y * worldScale
+                            0.1f, // Match the height above
+                            pos.y * worldScale 
                         );
                     }
 
@@ -1109,6 +1124,21 @@ namespace PocoRender.UI
                     {
                         mat.mainTexture = selImg.sprite.texture;
                         mat.color = selImg.color;
+
+                        // FIX: Configure Standard Shader for Transparency if texture has alpha
+                        if (mat.shader.name == "Standard")
+                        {
+                            // Set to Fade mode
+                            mat.SetFloat("_Mode", 2);
+                            mat.SetInt("_SrcBlend", (int)UnityEngine.Rendering.BlendMode.SrcAlpha);
+                            mat.SetInt("_DstBlend", (int)UnityEngine.Rendering.BlendMode.OneMinusSrcAlpha);
+                            mat.SetInt("_ZWrite", 0);
+                            mat.DisableKeyword("_ALPHATEST_ON");
+                            mat.EnableKeyword("_ALPHABLEND_ON");
+                            mat.DisableKeyword("_ALPHAPREMULTIPLY_ON");
+                            // Force RenderQueue higher than UI (3000) to ensure it draws ON TOP of the white paper background
+                            mat.renderQueue = 3100;
+                        }
                     }
                     else if (selImg != null)
                     {
