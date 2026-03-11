@@ -1014,48 +1014,45 @@ namespace PocoRender.UI.Modules
             GameObject contentBody = UIFactory.CreateObject("ContentBody", panel);
             RectTransform cbr = contentBody.GetComponent<RectTransform>();
             cbr.anchorMin = Vector2.zero; cbr.anchorMax = Vector2.one;
-            cbr.offsetMin = new Vector2(30, 20); 
-            cbr.offsetMax = new Vector2(-30, -60); 
+            cbr.offsetMin = new Vector2(24, 16); 
+            cbr.offsetMax = new Vector2(-24, -50); 
 
             HorizontalLayoutGroup bodyHlg = contentBody.AddComponent<HorizontalLayoutGroup>();
-            bodyHlg.spacing = 20;
+            bodyHlg.spacing = 12;
             bodyHlg.childControlHeight = true;
             bodyHlg.childForceExpandHeight = true;
             bodyHlg.childControlWidth = true;
             bodyHlg.childForceExpandWidth = true;
 
-            // Left: Preview (Expands to fill available height)
+            // Left: Preview (fill entire left column)
             GameObject leftCol = UIFactory.CreateObject("LeftCol", contentBody);
             LayoutElement leftLE = leftCol.AddComponent<LayoutElement>();
-            leftLE.flexibleWidth = 0.45f; // 45% width
-            
-            VerticalLayoutGroup llg = leftCol.AddComponent<VerticalLayoutGroup>();
-            llg.childAlignment = TextAnchor.UpperCenter;
-            llg.childControlHeight = false; // Let aspect ratio control height
-            llg.childForceExpandHeight = false;
+            leftLE.flexibleWidth = 0.45f;
 
+            // Preview fills the entire left column
             GameObject previewMask = UIFactory.CreateObject("PreviewMask", leftCol);
-            // Use AspectRatioFitter on the mask container itself to keep it square
-            AspectRatioFitter maskArf = previewMask.AddComponent<AspectRatioFitter>();
-            maskArf.aspectMode = AspectRatioFitter.AspectMode.FitInParent;
-            maskArf.aspectRatio = 1.0f;
+            RectTransform pmRt = previewMask.GetComponent<RectTransform>();
+            pmRt.anchorMin = Vector2.zero; pmRt.anchorMax = Vector2.one;
+            pmRt.offsetMin = Vector2.zero; pmRt.offsetMax = Vector2.zero;
 
             Image maskImg = previewMask.AddComponent<Image>();
-            maskImg.color = Color.white;
-            if (panelSprite != null) {
-                maskImg.sprite = panelSprite;
+            maskImg.color = new Color(0.93f, 0.93f, 0.93f);
+            if (inputSprite != null) {
+                maskImg.sprite = inputSprite;
                 maskImg.type = Image.Type.Sliced;
             }
+            Outline previewBorder = previewMask.AddComponent<Outline>();
+            previewBorder.effectColor = new Color(0.82f, 0.82f, 0.82f);
+            previewBorder.effectDistance = new Vector2(1, -1);
             previewMask.AddComponent<Mask>().showMaskGraphic = true;
 
             GameObject previewContent = UIFactory.CreateObject("PreviewContent", previewMask);
             UIFactory.Stretch(previewContent.GetComponent<RectTransform>());
             RawImage rawImg = previewContent.AddComponent<RawImage>();
-            rawImg.color = new Color(0.9f, 0.9f, 0.9f); 
-            // Use AspectRatioFitter EnvelopParent to fill and crop (zoom effect)
+            rawImg.color = new Color(0.93f, 0.93f, 0.93f);
             AspectRatioFitter arf = previewContent.AddComponent<AspectRatioFitter>();
             arf.aspectMode = AspectRatioFitter.AspectMode.EnvelopeParent;
-            arf.aspectRatio = 1.0f; // Square zoom
+            arf.aspectRatio = 1.0f;
             
             // Right: Form (Fixed width or remaining weight)
             GameObject rightCol = UIFactory.CreateObject("RightCol", contentBody);
@@ -1063,9 +1060,9 @@ namespace PocoRender.UI.Modules
             rightLE.flexibleWidth = 0.55f; // 55% width
 
             VerticalLayoutGroup rlg = rightCol.AddComponent<VerticalLayoutGroup>();
-            rlg.spacing = 4;
-            rlg.childControlHeight = true; // VLG controls height so LayoutElement is respected
-            rlg.childForceExpandHeight = false; // Don't stretch to fill
+            rlg.spacing = 40;
+            rlg.childControlHeight = true;
+            rlg.childForceExpandHeight = false;
             rlg.childControlWidth = true;
             rlg.childForceExpandWidth = true;
             rlg.childAlignment = TextAnchor.UpperLeft;
@@ -1074,32 +1071,39 @@ namespace PocoRender.UI.Modules
             System.Func<string, GameObject, InputField> CreateInput = (label, p) => {
                 GameObject row = UIFactory.CreateObject("Row_" + label, p);
                 LayoutElement rowLE = row.AddComponent<LayoutElement>();
-                rowLE.minHeight = 24; rowLE.preferredHeight = 24; // Fixed compact height
+                rowLE.minHeight = 42; rowLE.preferredHeight = 42; rowLE.flexibleHeight = 0;
                 HorizontalLayoutGroup hlg = row.AddComponent<HorizontalLayoutGroup>();
-                hlg.spacing = 4;
+                hlg.spacing = 6;
                 hlg.childControlHeight = true; hlg.childForceExpandHeight = true;
+                hlg.childControlWidth = true; hlg.childForceExpandWidth = false;
                 
-                // Label
-                GameObject labelObj = UIFactory.CreateText(label, row, 11, new Color(0.3f, 0.3f, 0.3f), Vector2.zero, Vector2.zero, TextAnchor.MiddleRight); // Right align
+                // Label (fixed width, right-aligned)
+                GameObject labelObj = UIFactory.CreateText(label, row, 11, new Color(0.3f, 0.3f, 0.3f), Vector2.zero, Vector2.zero, TextAnchor.MiddleRight);
                 LayoutElement lle = labelObj.AddComponent<LayoutElement>();
-                lle.minWidth = 90; lle.flexibleWidth = 0; 
+                lle.minWidth = 100; lle.preferredWidth = 100; lle.flexibleWidth = 0;
                 
-                // Input
+                // Input container
                 GameObject inpObj = UIFactory.CreateObject("Input", row);
-                LayoutElement ile = inpObj.AddComponent<LayoutElement>();
-                ile.flexibleWidth = 1; 
-                
-                Image inpBg = inpObj.AddComponent<Image>(); 
+                inpObj.AddComponent<LayoutElement>().flexibleWidth = 1;
+                Image inpBg = inpObj.AddComponent<Image>();
                 inpBg.color = new Color(0.96f, 0.96f, 0.96f);
                 if (inputSprite != null) { inpBg.sprite = inputSprite; inpBg.type = Image.Type.Sliced; }
 
+                // Text children must exist BEFORE InputField is added
+                GameObject txtObj = UIFactory.CreateText("", inpObj, 10, Color.black, Vector2.zero, Vector2.zero);
+                UIFactory.Stretch(txtObj.GetComponent<RectTransform>());
+                txtObj.GetComponent<RectTransform>().offsetMin = new Vector2(6, 0);
+                txtObj.GetComponent<RectTransform>().offsetMax = new Vector2(-6, 0);
+
+                GameObject placeObj = UIFactory.CreateText("", inpObj, 10, new Color(0.6f, 0.6f, 0.6f), Vector2.zero, Vector2.zero);
+                UIFactory.Stretch(placeObj.GetComponent<RectTransform>());
+                placeObj.GetComponent<RectTransform>().offsetMin = new Vector2(6, 0);
+                placeObj.GetComponent<RectTransform>().offsetMax = new Vector2(-6, 0);
+
+                // Wire up InputField after children exist
                 InputField inp = inpObj.AddComponent<InputField>();
-                GameObject placeObj = UIFactory.CreateText("", inpObj, 11, new Color(0.6f, 0.6f, 0.6f), Vector2.zero, Vector2.zero);
-                UIFactory.Stretch(placeObj.GetComponent<RectTransform>()); placeObj.GetComponent<RectTransform>().offsetMin = new Vector2(8, 0);
-                inp.placeholder = placeObj.GetComponent<Text>();
-                GameObject txtObj = UIFactory.CreateText("", inpObj, 11, Color.black, Vector2.zero, Vector2.zero);
-                UIFactory.Stretch(txtObj.GetComponent<RectTransform>()); txtObj.GetComponent<RectTransform>().offsetMin = new Vector2(8, 0);
                 inp.textComponent = txtObj.GetComponent<Text>();
+                inp.placeholder = placeObj.GetComponent<Text>();
                 
                 return inp;
             };
@@ -1108,15 +1112,16 @@ namespace PocoRender.UI.Modules
             System.Func<string, GameObject, Dropdown> CreateDropdown = (label, p) => {
                 GameObject row = UIFactory.CreateObject("Row_" + label, p);
                 LayoutElement rowLE = row.AddComponent<LayoutElement>();
-                rowLE.minHeight = 24; rowLE.preferredHeight = 24; // Fixed compact height
+                rowLE.minHeight = 42; rowLE.preferredHeight = 42; rowLE.flexibleHeight = 0;
                 HorizontalLayoutGroup hlg = row.AddComponent<HorizontalLayoutGroup>();
-                hlg.spacing = 4;
+                hlg.spacing = 6;
                 hlg.childControlHeight = true; hlg.childForceExpandHeight = true;
+                hlg.childControlWidth = true; hlg.childForceExpandWidth = false;
 
-                // Label
-                GameObject labelObj = UIFactory.CreateText(label, row, 11, new Color(0.3f, 0.3f, 0.3f), Vector2.zero, Vector2.zero, TextAnchor.MiddleRight); // Right align
+                // Label (fixed width, right-aligned)
+                GameObject labelObj = UIFactory.CreateText(label, row, 11, new Color(0.3f, 0.3f, 0.3f), Vector2.zero, Vector2.zero, TextAnchor.MiddleRight);
                 LayoutElement lle = labelObj.AddComponent<LayoutElement>();
-                lle.minWidth = 90; lle.flexibleWidth = 0; 
+                lle.minWidth = 100; lle.preferredWidth = 100; lle.flexibleWidth = 0; 
                 
                 // DD
                 GameObject ddObj = UIFactory.CreateObject("DD", row);
@@ -1130,14 +1135,16 @@ namespace PocoRender.UI.Modules
                 Dropdown dd = ddObj.AddComponent<Dropdown>();
                 UIFactory.AddDropdownArrow(ddObj, 10f);
 
-                GameObject captionObj = UIFactory.CreateText("Option", ddObj, 11, new Color(0.6f, 0.6f, 0.6f), Vector2.zero, Vector2.zero);
-                UIFactory.Stretch(captionObj.GetComponent<RectTransform>()); captionObj.GetComponent<RectTransform>().offsetMin = new Vector2(8, 0); captionObj.GetComponent<RectTransform>().offsetMax = new Vector2(-20, 0);
+                GameObject captionObj = UIFactory.CreateText("Option", ddObj, 10, new Color(0.6f, 0.6f, 0.6f), Vector2.zero, Vector2.zero);
+                UIFactory.Stretch(captionObj.GetComponent<RectTransform>()); captionObj.GetComponent<RectTransform>().offsetMin = new Vector2(6, 0); captionObj.GetComponent<RectTransform>().offsetMax = new Vector2(-20, 0);
                 dd.captionText = captionObj.GetComponent<Text>();
                 
-                // Template (Fix: Add Toggle to item to make it selectable)
+                // Template - positioned to align with the dropdown's left edge
                 GameObject template = UIFactory.CreateObject("Template", ddObj);
-                UIFactory.Stretch(template.GetComponent<RectTransform>());
-                template.GetComponent<RectTransform>().offsetMin = new Vector2(0, -150); // Increase drop height
+                RectTransform tmplRt = template.GetComponent<RectTransform>();
+                tmplRt.anchorMin = new Vector2(0, 0); tmplRt.anchorMax = new Vector2(1, 0);
+                tmplRt.pivot = new Vector2(0, 1);
+                tmplRt.sizeDelta = new Vector2(0, 150);
                 template.AddComponent<Image>().color = Color.white;
                 template.AddComponent<Outline>().effectColor = new Color(0.9f, 0.9f, 0.9f);
                 ScrollRect sr = template.AddComponent<ScrollRect>();
@@ -1216,9 +1223,9 @@ namespace PocoRender.UI.Modules
             // Buttons row (bottom right)
             GameObject btnRow = UIFactory.CreateObject("Buttons", rightCol);
             LayoutElement btnRowLE = btnRow.AddComponent<LayoutElement>();
-            btnRowLE.minHeight = 44;
+            btnRowLE.minHeight = 36;
             btnRowLE.flexibleHeight = 0;
-            btnRowLE.preferredHeight = 44;
+            btnRowLE.preferredHeight = 36;
             
             HorizontalLayoutGroup bhlg = btnRow.AddComponent<HorizontalLayoutGroup>();
             bhlg.spacing = 12;
@@ -1229,11 +1236,11 @@ namespace PocoRender.UI.Modules
             bhlg.childControlHeight = false;
             bhlg.padding = new RectOffset(0, 0, 5, 5); // Add padding to lift buttons off bottom edge slightly if needed
 
-            Button cancelBtn = UIFactory.CreateButton("Cancel", btnRow, Vector2.zero, new Vector2(100, 38), Color.white, Color.black).GetComponent<Button>();
+            Button cancelBtn = UIFactory.CreateButton("Cancel", btnRow, Vector2.zero, new Vector2(90, 30), Color.white, Color.black).GetComponent<Button>();
             cancelBtn.GetComponent<Image>().color = Color.white;
             if (cancelBtn.GetComponent<Outline>() == null) cancelBtn.gameObject.AddComponent<Outline>().effectColor = new Color(0.8f, 0.8f, 0.8f);
             
-            Button pubBtn = UIFactory.CreateButton("Publish", btnRow, Vector2.zero, new Vector2(100, 38), new Color(0.1f, 0.1f, 0.1f), Color.white).GetComponent<Button>();
+            Button pubBtn = UIFactory.CreateButton("Publish", btnRow, Vector2.zero, new Vector2(90, 30), new Color(0.1f, 0.1f, 0.1f), Color.white).GetComponent<Button>();
             // Add rounded corners to Publish button
             if (inputSprite != null) { pubBtn.GetComponent<Image>().sprite = inputSprite; pubBtn.GetComponent<Image>().type = Image.Type.Sliced; }
 
