@@ -1205,11 +1205,13 @@ namespace PocoRender.UI.Modules
             };
 
             var nameInp = CreateInput("Design Name *", rightCol);
+            nameInp.text = "Test";
             var catInp = CreateDropdown("Category *", rightCol);
             var themeInp = CreateDropdown("Theme *", rightCol);
             var styleInp = CreateDropdown("Style *", rightCol);
             var licenseInp = CreateDropdown("License *", rightCol);
             var tagsInp = CreateInput("Tags", rightCol);
+            tagsInp.text = "example";
             if (tagsInp != null && tagsInp.placeholder != null)
             {
                 Text phText = tagsInp.placeholder as Text;
