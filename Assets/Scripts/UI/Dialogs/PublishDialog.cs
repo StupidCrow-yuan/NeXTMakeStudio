@@ -57,6 +57,13 @@ namespace PocoRender.UI.Modules
         private System.Collections.IEnumerator CaptureRoutine()
         {
             yield return new WaitForEndOfFrame();
+            
+            Texture2D tex = HomeModule.CapturePaperFlatStatic(_paper);
+            if (tex != null && previewImage != null)
+            {
+                previewImage.texture = tex;
+                previewImage.color = Color.white;
+            }
         }
 
         private void OnPublish()
