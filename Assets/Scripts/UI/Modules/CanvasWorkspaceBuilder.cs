@@ -164,16 +164,123 @@ namespace PocoRender.UI.Modules
         {
             GameObject ct = UIFactory.CreateObject("ContextToolbar", workspace);
             RectTransform ctRect = ct.GetComponent<RectTransform>();
-            ctRect.anchorMin = new Vector2(0.5f, 0.5f); ctRect.anchorMax = new Vector2(0.5f, 0.5f); ctRect.pivot = new Vector2(0.5f, 0.5f);
-            ctRect.sizeDelta = new Vector2(680, 50); ctRect.anchoredPosition = new Vector2(0, 340); 
-            ct.AddComponent<Image>().color = Color.white; ct.AddComponent<Outline>().effectColor = new Color(0.9f, 0.9f, 0.9f);
+            ctRect.anchorMin = new Vector2(0.5f, 1f); ctRect.anchorMax = new Vector2(0.5f, 1f); ctRect.pivot = new Vector2(0.5f, 1f);
+            ctRect.sizeDelta = new Vector2(560, 34); ctRect.anchoredPosition = new Vector2(0, -4); 
+            Image ctBg = ct.AddComponent<Image>();
+            ctBg.color = Color.white;
+            Sprite cardSprite = UIFactory.CreateRoundedRectSprite(128, 64, 10);
+            if (cardSprite != null) { ctBg.sprite = cardSprite; ctBg.type = Image.Type.Sliced; }
+            ct.AddComponent<Outline>().effectColor = new Color(0.9f, 0.9f, 0.9f);
             HorizontalLayoutGroup ctHlg = ct.AddComponent<HorizontalLayoutGroup>();
-            ctHlg.spacing = 10; ctHlg.padding = new RectOffset(20, 20, 5, 5); ctHlg.childAlignment = TextAnchor.MiddleCenter;
+            ctHlg.spacing = 7; ctHlg.padding = new RectOffset(12, 12, 3, 3); ctHlg.childAlignment = TextAnchor.MiddleCenter;
 
-            string[] tools = { "Crop", "Eraser", "Opacity", "Image Cutting", "UpScaler", "AI Remover", "Cutout", "Outline" };
-            foreach(var tool in tools) UIFactory.CreateButton(tool, ct, Vector2.zero, new Vector2(0, 30), Color.white, Color.black).AddComponent<LayoutElement>().flexibleWidth = 1;
+            Button cropBtn = CreateToolbarIconButton(ct, "EditIcons/p_edit_crop", "Crop");
+            cropBtn.onClick.AddListener(() => controller.ToggleCropTool());
+
+            string[] tools = { "Eraser", "Opacity", "Image Cutting", "UpScaler", "AI Remover", "Cutout", "Outline" };
+            foreach (var tool in tools)
+                UIFactory.CreateButton(tool, ct, Vector2.zero, new Vector2(0, 30), Color.white, Color.black).AddComponent<LayoutElement>().flexibleWidth = 1;
+
             ct.SetActive(false); controller.contextToolbar = ct;
             ct.transform.SetAsLastSibling();
+
+            GameObject cropPanel = UIFactory.CreateObject("CropOptionsPanel", workspace);
+            RectTransform cpRect = cropPanel.GetComponent<RectTransform>();
+            cpRect.anchorMin = new Vector2(0.5f, 1f); cpRect.anchorMax = new Vector2(0.5f, 1f); cpRect.pivot = new Vector2(0.5f, 1f);
+            cpRect.sizeDelta = new Vector2(540, 56); cpRect.anchoredPosition = new Vector2(0, -42);
+            Image cpBg = cropPanel.AddComponent<Image>();
+            cpBg.color = Color.white;
+            if (cardSprite != null) { cpBg.sprite = cardSprite; cpBg.type = Image.Type.Sliced; }
+            cropPanel.AddComponent<Outline>().effectColor = new Color(0.9f, 0.9f, 0.9f);
+
+            HorizontalLayoutGroup cpHlg = cropPanel.AddComponent<HorizontalLayoutGroup>();
+            cpHlg.spacing = 8;
+            cpHlg.padding = new RectOffset(6, 6, 3, 3);
+            cpHlg.childAlignment = TextAnchor.MiddleCenter;
+            cpHlg.childControlWidth = false;
+            cpHlg.childControlHeight = false;
+            cpHlg.childForceExpandWidth = false;
+            cpHlg.childForceExpandHeight = false;
+
+            CreateCropPresetButton(cropPanel, "EditIcons/p_edit_free", "Free", () => controller.SetCropPreset(CropPresetType.Free));
+            CreateCropPresetButton(cropPanel, "EditIcons/p_edit_1_1", "1:1", () => controller.SetCropPreset(CropPresetType.Ratio1x1));
+            CreateCropPresetButton(cropPanel, "EditIcons/p_edit_9_16", "9:16", () => controller.SetCropPreset(CropPresetType.Ratio9x16));
+            CreateCropPresetButton(cropPanel, "EditIcons/p_edit_16_9", "16:9", () => controller.SetCropPreset(CropPresetType.Ratio16x9));
+            CreateCropPresetButton(cropPanel, "EditIcons/p_edit_ellipse", "Ellipse", () => controller.SetCropPreset(CropPresetType.Ellipse));
+            CreateCropPresetButton(cropPanel, "EditIcons/p_edit_triangle", "Triangle", () => controller.SetCropPreset(CropPresetType.Triangle));
+            CreateCropPresetButton(cropPanel, "EditIcons/p_edit_star", "Star", () => controller.SetCropPreset(CropPresetType.Star));
+            CreateCropPresetButton(cropPanel, "EditIcons/p_edit_heart", "Heart", () => controller.SetCropPreset(CropPresetType.Heart));
+
+            var cancelBtn = UIFactory.CreateButton("Cancel", cropPanel, Vector2.zero, new Vector2(56, 28), Color.white, Color.black);
+            cancelBtn.GetComponent<Button>().onClick.AddListener(() => controller.CancelCropTool());
+            cancelBtn.GetComponentInChildren<Text>().fontSize = 10;
+
+            var applyBtn = UIFactory.CreateButton("Apply", cropPanel, Vector2.zero, new Vector2(56, 28), new Color(0.1f, 0.1f, 0.1f), Color.white);
+            applyBtn.GetComponent<Button>().onClick.AddListener(() => controller.ApplyCropTool());
+            applyBtn.GetComponentInChildren<Text>().fontSize = 10;
+
+            cropPanel.SetActive(false);
+            cropPanel.transform.SetAsLastSibling();
+            controller.cropOptionsPanel = cropPanel;
+        }
+
+        private static Button CreateToolbarIconButton(GameObject parent, string iconPath, string fallbackText)
+        {
+            GameObject buttonObj = UIFactory.CreateButton("", parent, Vector2.zero, new Vector2(38, 28), Color.white, Color.black);
+            LayoutElement le = buttonObj.AddComponent<LayoutElement>();
+            le.minWidth = 38;
+            le.preferredWidth = 38;
+            Image img = buttonObj.GetComponent<Image>();
+            Sprite sprite = Resources.Load<Sprite>(iconPath);
+            if (sprite != null)
+            {
+                img.sprite = sprite;
+                img.type = Image.Type.Simple;
+                img.preserveAspect = true;
+                img.color = Color.white;
+            }
+            else
+            {
+                Object.Destroy(buttonObj.transform.GetChild(0).gameObject);
+                UIFactory.CreateText(fallbackText, buttonObj, 12, Color.black, Vector2.zero, Vector2.zero);
+            }
+
+            return buttonObj.GetComponent<Button>();
+        }
+
+        private static void CreateCropPresetButton(GameObject parent, string iconPath, string label, System.Action onClick)
+        {
+            GameObject item = UIFactory.CreateObject("CropPreset_" + label, parent);
+            item.GetComponent<RectTransform>().sizeDelta = new Vector2(36, 48);
+
+            VerticalLayoutGroup vlg = item.AddComponent<VerticalLayoutGroup>();
+            vlg.spacing = 2;
+            vlg.childAlignment = TextAnchor.MiddleCenter;
+            vlg.childControlWidth = true;
+            vlg.childControlHeight = false;
+            vlg.childForceExpandWidth = true;
+            vlg.childForceExpandHeight = false;
+
+            GameObject buttonObj = UIFactory.CreateButton("", item, Vector2.zero, new Vector2(28, 22), Color.white, Color.black);
+            Button button = buttonObj.GetComponent<Button>();
+            button.onClick.AddListener(() => onClick());
+            Image buttonImage = buttonObj.GetComponent<Image>();
+            Sprite sprite = Resources.Load<Sprite>(iconPath);
+            if (sprite != null)
+            {
+                buttonImage.sprite = sprite;
+                buttonImage.type = Image.Type.Simple;
+                buttonImage.preserveAspect = true;
+                buttonImage.color = Color.white;
+            }
+            else
+            {
+                Object.Destroy(buttonObj.transform.GetChild(0).gameObject);
+                UIFactory.CreateText(label, buttonObj, 8, Color.black, Vector2.zero, Vector2.zero);
+            }
+
+            GameObject labelObj = UIFactory.CreateText(label, item, 8, new Color(0.25f, 0.25f, 0.25f), Vector2.zero, new Vector2(36, 12), TextAnchor.MiddleCenter);
+            labelObj.GetComponent<Text>().raycastTarget = false;
         }
 
         public static void CreateLayersPanel(GameObject workspace, CanvasController controller)

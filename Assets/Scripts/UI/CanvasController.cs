@@ -12,6 +12,7 @@ namespace PocoRender.UI
     public class CanvasController : MonoBehaviour
     {
         public GameObject contextToolbar;
+        public GameObject cropOptionsPanel;
         
         // Position Info Fields (editable)
         public InputField posXInput;
@@ -87,6 +88,7 @@ namespace PocoRender.UI
         private GameObject rotationHandle;
         private GameObject selectionFrame;
         private Outline currentOutline;
+        private CropToolSession activeCropSession;
 
         private float paperWidth = 600f;
         private float paperHeight = 600f;
@@ -147,6 +149,11 @@ namespace PocoRender.UI
                     UpdatePositionInfo();
                     OnObjectMoved();
                 }));
+        }
+
+        public void RecordCrop(CropCommand cmd)
+        {
+            commandHistory.AddToHistory(cmd);
         }
 
         public void RecordAdd(GameObject obj)
@@ -215,6 +222,13 @@ namespace PocoRender.UI
 
         public void Deselect()
         {
+            if (activeCropSession != null)
+            {
+                activeCropSession.CancelCrop();
+                activeCropSession = null;
+            }
+            if (cropOptionsPanel != null) cropOptionsPanel.SetActive(false);
+
             if (currentSelection != null)
             {
                 if (currentOutline != null) currentOutline.enabled = false;
@@ -238,6 +252,93 @@ namespace PocoRender.UI
             }
 
             UpdateLayersPanel();
+        }
+
+        public void ToggleCropTool()
+        {
+            if (currentSelection == null)
+            {
+                ShowInfoPopup("Select an image layer first");
+                return;
+            }
+
+            Image selectedImage = currentSelection.GetComponent<Image>();
+            if (selectedImage == null || selectedImage.sprite == null)
+            {
+                ShowInfoPopup("Crop only works on image layers");
+                return;
+            }
+
+            if (activeCropSession != null && activeCropSession.IsFor(currentSelection))
+            {
+                bool nextState = cropOptionsPanel == null || !cropOptionsPanel.activeSelf;
+                if (cropOptionsPanel != null) cropOptionsPanel.SetActive(nextState);
+                if (!nextState)
+                {
+                    CancelCropTool();
+                }
+                return;
+            }
+
+            StartCropTool();
+        }
+
+        public void SetCropPreset(CropPresetType preset)
+        {
+            if (activeCropSession == null)
+            {
+                StartCropTool();
+            }
+
+            activeCropSession?.SetPreset(preset);
+        }
+
+        public void ApplyCropTool()
+        {
+            if (activeCropSession == null) return;
+            activeCropSession.ApplyCrop();
+            activeCropSession = null;
+            if (cropOptionsPanel != null) cropOptionsPanel.SetActive(false);
+            if (currentSelection != null)
+            {
+                CreateSelectionFrame();
+                CreateRotationHandle();
+                UpdatePositionInfo();
+                UpdateLayersPanel();
+            }
+        }
+
+        public void CancelCropTool()
+        {
+            if (activeCropSession != null)
+            {
+                activeCropSession.CancelCrop();
+                activeCropSession = null;
+            }
+
+            if (cropOptionsPanel != null) cropOptionsPanel.SetActive(false);
+            if (currentSelection != null)
+            {
+                CreateSelectionFrame();
+                CreateRotationHandle();
+                UpdatePositionInfo();
+            }
+        }
+
+        private void StartCropTool()
+        {
+            if (activeCropSession != null)
+            {
+                activeCropSession.CancelCrop();
+                activeCropSession = null;
+            }
+
+            DestroySelectionFrame();
+            DestroyRotationHandle();
+
+            activeCropSession = CropToolSession.Create(this, currentSelection);
+            activeCropSession.SetPreset(CropPresetType.Free);
+            if (cropOptionsPanel != null) cropOptionsPanel.SetActive(true);
         }
 
         public void UpdatePrintAreaList()

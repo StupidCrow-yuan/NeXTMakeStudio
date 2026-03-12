@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.UI;
 
 namespace PocoRender.UI
 {
@@ -193,6 +194,51 @@ namespace PocoRender.UI
                 target.SetActive(true);
                 onUndo?.Invoke();
             }
+        }
+    }
+
+    public class CropCommand : ICommand
+    {
+        private Image targetImage;
+        private RectTransform targetRect;
+        private Sprite oldSprite;
+        private Sprite newSprite;
+        private Vector2 oldSize;
+        private Vector2 newSize;
+        private System.Action onComplete;
+
+        public CropCommand(Image targetImage, RectTransform targetRect,
+                           Sprite oldSprite, Sprite newSprite,
+                           Vector2 oldSize, Vector2 newSize,
+                           System.Action onComplete = null)
+        {
+            this.targetImage = targetImage;
+            this.targetRect = targetRect;
+            this.oldSprite = oldSprite;
+            this.newSprite = newSprite;
+            this.oldSize = oldSize;
+            this.newSize = newSize;
+            this.onComplete = onComplete;
+        }
+
+        public void Execute()
+        {
+            if (targetImage == null || targetRect == null) return;
+            targetImage.sprite = newSprite;
+            targetImage.preserveAspect = true;
+            targetImage.color = Color.white;
+            targetRect.sizeDelta = newSize;
+            onComplete?.Invoke();
+        }
+
+        public void Undo()
+        {
+            if (targetImage == null || targetRect == null) return;
+            targetImage.sprite = oldSprite;
+            targetImage.preserveAspect = true;
+            targetImage.color = Color.white;
+            targetRect.sizeDelta = oldSize;
+            onComplete?.Invoke();
         }
     }
 }

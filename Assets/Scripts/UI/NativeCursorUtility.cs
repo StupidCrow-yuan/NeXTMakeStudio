@@ -10,6 +10,8 @@ namespace PocoRender.UI
         SizeAll,
         SizeNwSe,
         SizeNeSw,
+        SizeWE,
+        SizeNS,
         Rotate
     }
 
@@ -18,6 +20,8 @@ namespace PocoRender.UI
         private static Texture2D moveCursorTexture;
         private static Texture2D nwseCursorTexture;
         private static Texture2D neswCursorTexture;
+        private static Texture2D weCursorTexture;
+        private static Texture2D nsCursorTexture;
         private static Texture2D rotateCursorTexture;
         private const float CursorScale = 0.7f;
 
@@ -25,6 +29,8 @@ namespace PocoRender.UI
         private static readonly IntPtr IDC_ARROW = new IntPtr(32512);
         private static readonly IntPtr IDC_SIZENWSE = new IntPtr(32642);
         private static readonly IntPtr IDC_SIZENESW = new IntPtr(32643);
+        private static readonly IntPtr IDC_SIZEWE = new IntPtr(32644);
+        private static readonly IntPtr IDC_SIZENS = new IntPtr(32645);
         private static readonly IntPtr IDC_SIZEALL = new IntPtr(32646);
 
         [DllImport("user32.dll", CharSet = CharSet.Auto)]
@@ -53,6 +59,12 @@ namespace PocoRender.UI
                     break;
                 case NativeCursorShape.SizeNeSw:
                     cursorId = IDC_SIZENESW;
+                    break;
+                case NativeCursorShape.SizeWE:
+                    cursorId = IDC_SIZEWE;
+                    break;
+                case NativeCursorShape.SizeNS:
+                    cursorId = IDC_SIZENS;
                     break;
             }
 
@@ -91,6 +103,16 @@ namespace PocoRender.UI
                         neswCursorTexture = LoadReadableCursorTexture("EditIcons/p_leftdown_righTop", CursorScale);
                     texture = neswCursorTexture;
                     break;
+                case NativeCursorShape.SizeWE:
+                    if (weCursorTexture == null)
+                        weCursorTexture = LoadReadableCursorTexture("EditIcons/p_edit-move-horizontal", 2.0f);
+                    texture = weCursorTexture;
+                    break;
+                case NativeCursorShape.SizeNS:
+                    if (nsCursorTexture == null)
+                        nsCursorTexture = LoadReadableCursorTexture("EditIcons/p_edit-move-vertical", 2.0f);
+                    texture = nsCursorTexture;
+                    break;
                 case NativeCursorShape.Rotate:
                     if (rotateCursorTexture == null)
                         rotateCursorTexture = LoadReadableCursorTexture("EditIcons/p_edit_handline", CursorScale);
@@ -114,12 +136,11 @@ namespace PocoRender.UI
 
             try
             {
-                int canvasWidth = source.width;
-                int canvasHeight = source.height;
                 int scaledWidth = Mathf.Max(8, Mathf.RoundToInt(source.width * scale));
                 int scaledHeight = Mathf.Max(8, Mathf.RoundToInt(source.height * scale));
+                int canvasWidth = Mathf.Max(source.width, scaledWidth);
+                int canvasHeight = Mathf.Max(source.height, scaledHeight);
 
-                // First render the source into a smaller temporary texture.
                 RenderTexture rt = RenderTexture.GetTemporary(
                     scaledWidth,
                     scaledHeight,
@@ -138,14 +159,11 @@ namespace PocoRender.UI
                 RenderTexture.active = prev;
                 RenderTexture.ReleaseTemporary(rt);
 
-                // Then place the smaller cursor art into the center of a full-size,
-                // transparent canvas. This makes the visible cursor glyph smaller
-                // even on platforms that normalize cursor texture bounds.
                 Texture2D finalTexture = new Texture2D(canvasWidth, canvasHeight, TextureFormat.RGBA32, false);
-                Color[] clearPixels = new Color[canvasWidth * canvasHeight];
+                Color32[] clearPixels = new Color32[canvasWidth * canvasHeight];
                 for (int i = 0; i < clearPixels.Length; i++)
-                    clearPixels[i] = new Color(0f, 0f, 0f, 0f);
-                finalTexture.SetPixels(clearPixels);
+                    clearPixels[i] = new Color32(0, 0, 0, 0);
+                finalTexture.SetPixels32(clearPixels);
 
                 int x = Mathf.Max(0, (canvasWidth - scaledWidth) / 2);
                 int y = Mathf.Max(0, (canvasHeight - scaledHeight) / 2);
