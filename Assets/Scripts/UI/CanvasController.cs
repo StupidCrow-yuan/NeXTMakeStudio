@@ -1430,10 +1430,7 @@ namespace PocoRender.UI
             frameRt.offsetMax = Vector2.zero;
             frameRt.pivot = targetRt.pivot;
 
-            CreateSelectionEdge("TopEdge", selectionFrame.transform, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(0f, 2f), Vector2.zero);
-            CreateSelectionEdge("BottomEdge", selectionFrame.transform, new Vector2(0f, 0f), new Vector2(1f, 0f), new Vector2(0f, 2f), Vector2.zero);
-            CreateSelectionEdge("LeftEdge", selectionFrame.transform, new Vector2(0f, 0f), new Vector2(0f, 1f), new Vector2(2f, 0f), Vector2.zero);
-            CreateSelectionEdge("RightEdge", selectionFrame.transform, new Vector2(1f, 0f), new Vector2(1f, 1f), new Vector2(2f, 0f), Vector2.zero);
+            CreateSelectionBorder(selectionFrame.transform);
 
             CreateCornerHandle("TopLeftHandle", selectionFrame.transform, new Vector2(0f, 1f), new Vector2(-1, 1));
             CreateCornerHandle("TopRightHandle", selectionFrame.transform, new Vector2(1f, 1f), new Vector2(1, 1));
@@ -1447,41 +1444,56 @@ namespace PocoRender.UI
             selectionFrame = null;
         }
 
-        private static void CreateSelectionEdge(string name, Transform parent,
-                                                Vector2 anchorMin, Vector2 anchorMax,
-                                                Vector2 sizeDelta, Vector2 anchoredPosition)
+        private static void CreateSelectionBorder(Transform parent)
         {
-            GameObject edge = new GameObject(name, typeof(RectTransform), typeof(Image), typeof(SelectionAdornment));
-            edge.transform.SetParent(parent, false);
+            GameObject border = new GameObject("Border", typeof(RectTransform), typeof(Image), typeof(SelectionAdornment));
+            border.transform.SetParent(parent, false);
 
-            RectTransform rt = edge.GetComponent<RectTransform>();
-            rt.anchorMin = anchorMin;
-            rt.anchorMax = anchorMax;
-            rt.pivot = new Vector2(0.5f, 0.5f);
-            rt.sizeDelta = sizeDelta;
-            rt.anchoredPosition = anchoredPosition;
+            RectTransform rt = border.GetComponent<RectTransform>();
+            rt.anchorMin = Vector2.zero;
+            rt.anchorMax = Vector2.one;
+            rt.offsetMin = Vector2.zero;
+            rt.offsetMax = Vector2.zero;
 
-            Image img = edge.GetComponent<Image>();
+            Image img = border.GetComponent<Image>();
+            img.sprite = CreateSelectionBorderSprite();
+            img.type = Image.Type.Sliced;
             img.color = new Color(0.31f, 0.86f, 0.45f);
             img.raycastTarget = false;
         }
 
         private void CreateCornerHandle(string name, Transform parent, Vector2 anchor, Vector2 signs)
         {
-            GameObject handle = new GameObject(name, typeof(RectTransform), typeof(Image), typeof(Outline), typeof(SelectionAdornment));
+            const float visualSize = 9f;
+            const float hitSize = 22f;
+
+            GameObject handle = new GameObject(name, typeof(RectTransform), typeof(Image), typeof(SelectionAdornment));
             handle.transform.SetParent(parent, false);
 
             RectTransform rt = handle.GetComponent<RectTransform>();
             rt.anchorMin = anchor;
             rt.anchorMax = anchor;
             rt.pivot = new Vector2(0.5f, 0.5f);
-            rt.sizeDelta = new Vector2(9f, 9f);
-            rt.anchoredPosition = Vector2.zero;
+            rt.sizeDelta = new Vector2(hitSize, hitSize);
+            rt.anchoredPosition = new Vector2(-signs.x * visualSize * 0.5f, -signs.y * visualSize * 0.5f);
 
             Image img = handle.GetComponent<Image>();
-            img.color = Color.white;
+            img.color = new Color(1f, 1f, 1f, 0.001f);
 
-            Outline outline = handle.GetComponent<Outline>();
+            GameObject visual = new GameObject("Visual", typeof(RectTransform), typeof(Image), typeof(Outline), typeof(SelectionAdornment));
+            visual.transform.SetParent(handle.transform, false);
+            RectTransform visualRt = visual.GetComponent<RectTransform>();
+            visualRt.anchorMin = new Vector2(0.5f, 0.5f);
+            visualRt.anchorMax = new Vector2(0.5f, 0.5f);
+            visualRt.pivot = new Vector2(0.5f, 0.5f);
+            visualRt.sizeDelta = new Vector2(visualSize, visualSize);
+            visualRt.anchoredPosition = Vector2.zero;
+
+            Image visualImg = visual.GetComponent<Image>();
+            visualImg.color = Color.white;
+            visualImg.raycastTarget = false;
+
+            Outline outline = visual.GetComponent<Outline>();
             outline.effectColor = new Color(0.31f, 0.86f, 0.45f);
             outline.effectDistance = new Vector2(1f, -1f);
 
@@ -1490,6 +1502,50 @@ namespace PocoRender.UI
             resizeHandle.controller = this;
             resizeHandle.xSign = Mathf.RoundToInt(signs.x);
             resizeHandle.ySign = Mathf.RoundToInt(signs.y);
+        }
+
+        private static Sprite CreateSelectionBorderSprite()
+        {
+            const int size = 128;
+            const int radius = 10;
+            const float borderWidth = 3.0f;
+            Texture2D tex = new Texture2D(size, size, TextureFormat.RGBA32, false);
+            tex.filterMode = FilterMode.Bilinear;
+
+            Vector2 center = new Vector2(size * 0.5f, size * 0.5f);
+            Vector2 halfOuter = new Vector2(size * 0.5f - 2f, size * 0.5f - 2f);
+            Vector2 halfInner = halfOuter - Vector2.one * borderWidth;
+
+            for (int y = 0; y < size; y++)
+            {
+                for (int x = 0; x < size; x++)
+                {
+                    Vector2 p = new Vector2(x + 0.5f, y + 0.5f) - center;
+                    float outer = SignedDistanceRoundedBox(p, halfOuter, radius);
+                    float inner = SignedDistanceRoundedBox(p, halfInner, Mathf.Max(1f, radius - borderWidth));
+                    float outerAlpha = 1f - Mathf.Clamp01(outer + 0.5f);
+                    float innerAlpha = 1f - Mathf.Clamp01(inner + 0.5f);
+                    float alpha = Mathf.Clamp01(outerAlpha - innerAlpha);
+                    tex.SetPixel(x, y, new Color(1f, 1f, 1f, alpha));
+                }
+            }
+
+            tex.Apply();
+            return Sprite.Create(
+                tex,
+                new Rect(0, 0, size, size),
+                new Vector2(0.5f, 0.5f),
+                100f,
+                0,
+                SpriteMeshType.FullRect,
+                new Vector4(radius + borderWidth, radius + borderWidth, radius + borderWidth, radius + borderWidth));
+        }
+
+        private static float SignedDistanceRoundedBox(Vector2 p, Vector2 b, float r)
+        {
+            Vector2 q = new Vector2(Mathf.Abs(p.x), Mathf.Abs(p.y)) - b + Vector2.one * r;
+            Vector2 maxQ = new Vector2(Mathf.Max(q.x, 0f), Mathf.Max(q.y, 0f));
+            return maxQ.magnitude + Mathf.Min(Mathf.Max(q.x, q.y), 0f) - r;
         }
 
         private void DestroyRotationHandle()

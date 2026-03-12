@@ -14,6 +14,8 @@ namespace PocoRender.UI
         private Vector2 dragStartPos;
         private GameObject dragInfoBubble;
         private Text dragInfoText;
+        private bool isHovered;
+        private bool isDraggingSelf;
 
         void Start()
         {
@@ -29,8 +31,18 @@ namespace PocoRender.UI
 
         private void OnDisable()
         {
+            isHovered = false;
+            isDraggingSelf = false;
             NativeCursorUtility.Reset();
             DestroyDragInfoBubble();
+        }
+
+        private void LateUpdate()
+        {
+            if ((isHovered || isDraggingSelf) && canvasController != null && canvasController.CurrentSelection == gameObject)
+            {
+                ApplyMoveCursor();
+            }
         }
 
         public void OnPointerDown(PointerEventData eventData)
@@ -57,6 +69,7 @@ namespace PocoRender.UI
             if (rectTransform != null) dragStartPos = rectTransform.anchoredPosition;
             if (canvasController != null && canvasController.CurrentSelection == gameObject)
             {
+                isDraggingSelf = true;
                 ApplyMoveCursor();
                 EnsureDragInfoBubble();
                 UpdateDragInfoBubble(eventData);
@@ -86,6 +99,7 @@ namespace PocoRender.UI
         public void OnEndDrag(PointerEventData eventData)
         {
             if (IsLocked) return;
+            isDraggingSelf = false;
             if (canvasController != null && rectTransform != null)
             {
                 if (Vector2.Distance(dragStartPos, rectTransform.anchoredPosition) > 0.01f)
@@ -103,6 +117,7 @@ namespace PocoRender.UI
         public void OnPointerEnter(PointerEventData eventData)
         {
             if (IsLocked) return;
+            isHovered = true;
             if (canvasController != null && canvasController.CurrentSelection == gameObject)
             {
                 ApplyMoveCursor();
@@ -111,6 +126,7 @@ namespace PocoRender.UI
 
         public void OnPointerExit(PointerEventData eventData)
         {
+            isHovered = false;
             if (!eventData.dragging)
             {
                 DestroyDragInfoBubble();
@@ -133,7 +149,7 @@ namespace PocoRender.UI
 
             Image bg = dragInfoBubble.GetComponent<Image>();
             bg.color = new Color(0f, 0f, 0f, 0.7f);
-            Sprite rounded = UIFactory.CreateRoundedRectSprite(96, 48, 10);
+            Sprite rounded = UIFactory.CreateRoundedRectSprite(96, 48, 7);
             if (rounded != null)
             {
                 bg.sprite = rounded;

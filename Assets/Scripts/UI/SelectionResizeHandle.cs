@@ -34,6 +34,7 @@ namespace PocoRender.UI
         private Text resizeInfoText;
         private Vector2 diagonalDirParent;
         private float startDiagonalLength;
+        private bool isHovered;
 
         private const float MinSize = 24f;
 
@@ -44,18 +45,29 @@ namespace PocoRender.UI
 
         private void OnDisable()
         {
+            isHovered = false;
             isDragging = false;
             DestroyResizeInfoBubble();
             NativeCursorUtility.Reset();
         }
 
+        private void LateUpdate()
+        {
+            if (isHovered || isDragging)
+            {
+                ApplyCursor();
+            }
+        }
+
         public void OnPointerEnter(PointerEventData eventData)
         {
+            isHovered = true;
             ApplyCursor();
         }
 
         public void OnPointerExit(PointerEventData eventData)
         {
+            isHovered = false;
             if (!eventData.dragging && !isDragging)
                 NativeCursorUtility.Reset();
         }
@@ -171,7 +183,7 @@ namespace PocoRender.UI
 
         private void ApplyCursor()
         {
-            NativeCursorUtility.Apply(xSign == ySign
+            NativeCursorUtility.Apply(xSign != ySign
                 ? NativeCursorShape.SizeNwSe
                 : NativeCursorShape.SizeNeSw);
         }
@@ -191,7 +203,7 @@ namespace PocoRender.UI
 
             Image bg = resizeInfoBubble.GetComponent<Image>();
             bg.color = new Color(0f, 0f, 0f, 0.88f);
-            Sprite rounded = UIFactory.CreateRoundedRectSprite(96, 48, 10);
+            Sprite rounded = UIFactory.CreateRoundedRectSprite(96, 48, 7);
             if (rounded != null)
             {
                 bg.sprite = rounded;
