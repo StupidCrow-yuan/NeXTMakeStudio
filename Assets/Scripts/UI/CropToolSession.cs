@@ -48,6 +48,9 @@ namespace PocoRender.UI
         private Sprite cachedShapeOutline;
         private CropShapeType cachedOutlineShape = (CropShapeType)(-1);
 
+        private static readonly System.Collections.Generic.Dictionary<CropShapeType, Sprite> s_shapeOutlineCache
+            = new System.Collections.Generic.Dictionary<CropShapeType, Sprite>();
+
         private const float MinFrameSize = 40f;
         private const float HandleHitSize = 28f;
         private const float HandleVisualSize = 10f;
@@ -411,7 +414,11 @@ namespace PocoRender.UI
 
             if (cachedOutlineShape != currentShape)
             {
-                cachedShapeOutline = BuildShapeSprite(currentShape, true);
+                if (!s_shapeOutlineCache.TryGetValue(currentShape, out cachedShapeOutline) || cachedShapeOutline == null)
+                {
+                    cachedShapeOutline = BuildShapeSprite(currentShape, true);
+                    s_shapeOutlineCache[currentShape] = cachedShapeOutline;
+                }
                 cachedOutlineShape = currentShape;
             }
             shapeOutlineGraphic.sprite = cachedShapeOutline;
@@ -434,46 +441,61 @@ namespace PocoRender.UI
             int outputHeight = Mathf.Max(1, Mathf.RoundToInt(frameRect.rect.height));
             Texture2D tex = new Texture2D(outputWidth, outputHeight, TextureFormat.RGBA32, false, true);
 
-            for (int y = 0; y < outputHeight; y++)
+            bool needAA = currentShape != CropShapeType.Rect;
+            int aa = needAA ? 3 : 1;
+            float invAa = 1f / aa;
+            float invAaSq = 1f / (aa * aa);
+            float fw = frameRect.rect.width;
+            float fh = frameRect.rect.height;
+            Vector2 framePos = frameRect.anchoredPosition;
+            Vector2 imgPos = cropImageRect.anchoredPosition;
+            Vector2 imgSize = cropImageRect.sizeDelta;
+
+            Color[] pixels = new Color[outputWidth * outputHeight];
+
+            for (int py = 0; py < outputHeight; py++)
             {
-                for (int x = 0; x < outputWidth; x++)
+                for (int px = 0; px < outputWidth; px++)
                 {
-                    float nx = ((x + 0.5f) / outputWidth) * 2f - 1f;
-                    float ny = ((y + 0.5f) / outputHeight) * 2f - 1f;
-                    if (!IsInsideShape(currentShape, nx, ny))
+                    float r = 0f, g = 0f, b = 0f, a = 0f;
+                    for (int sy = 0; sy < aa; sy++)
                     {
-                        tex.SetPixel(x, y, new Color(0f, 0f, 0f, 0f));
-                        continue;
-                    }
+                        for (int sx = 0; sx < aa; sx++)
+                        {
+                            float subX = px + (sx + 0.5f) * invAa;
+                            float subY = py + (sy + 0.5f) * invAa;
+                            float nx = (subX / outputWidth) * 2f - 1f;
+                            float ny = (subY / outputHeight) * 2f - 1f;
 
-                    Vector2 localInFrame = new Vector2(
-                        (nx * frameRect.rect.width) * 0.5f,
-                        (ny * frameRect.rect.height) * 0.5f);
-                    Vector2 rootLocal = frameRect.anchoredPosition + localInFrame;
-                    Vector2 imageLocal = rootLocal - cropImageRect.anchoredPosition;
-                    float u = imageLocal.x / cropImageRect.sizeDelta.x + 0.5f;
-                    float v = imageLocal.y / cropImageRect.sizeDelta.y + 0.5f;
+                            if (!IsInsideShape(currentShape, nx, ny))
+                                continue;
 
-                    if (u < 0f || u > 1f || v < 0f || v > 1f)
-                    {
-                        tex.SetPixel(x, y, new Color(0f, 0f, 0f, 0f));
+                            float lx = nx * fw * 0.5f;
+                            float ly = ny * fh * 0.5f;
+                            float u = (framePos.x + lx - imgPos.x) / imgSize.x + 0.5f;
+                            float v = (framePos.y + ly - imgPos.y) / imgSize.y + 0.5f;
+
+                            if (u < 0f || u > 1f || v < 0f || v > 1f)
+                                continue;
+
+                            Color c = sourceTexture.GetPixelBilinear(u, v);
+                            r += c.r; g += c.g; b += c.b; a += c.a;
+                        }
                     }
-                    else
-                    {
-                        tex.SetPixel(x, y, sourceTexture.GetPixelBilinear(u, v));
-                    }
+                    pixels[py * outputWidth + px] = new Color(r * invAaSq, g * invAaSq, b * invAaSq, a * invAaSq);
                 }
             }
 
+            tex.SetPixels(pixels);
             tex.Apply();
             return tex;
         }
 
         private Sprite BuildShapeSprite(CropShapeType shape, bool outlineOnly)
         {
-            const int size = 512;
-            const float border = 0.02f;
-            const int aa = 3;
+            const int size = 256;
+            const float border = 0.025f;
+            const int aa = 2;
 
             Texture2D tex = new Texture2D(size, size, TextureFormat.RGBA32, false);
             tex.filterMode = FilterMode.Bilinear;
@@ -505,14 +527,12 @@ namespace PocoRender.UI
 
             tex.SetPixels32(pixels);
             tex.Apply();
-            return Sprite.Create(tex, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f), 100f, 0, SpriteMeshType.FullRect, new Vector4(48, 48, 48, 48));
+            return Sprite.Create(tex, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f), 100f, 0, SpriteMeshType.FullRect, new Vector4(24, 24, 24, 24));
         }
 
         private Sprite BuildOverlaySprite()
         {
             const int size = 256;
-            const int aa = 2;
-            float invAaSq = 1f / (aa * aa);
             Texture2D tex = new Texture2D(size, size, TextureFormat.RGBA32, false);
             tex.filterMode = FilterMode.Bilinear;
 
@@ -528,23 +548,12 @@ namespace PocoRender.UI
             {
                 for (int px = 0; px < size; px++)
                 {
-                    int insideCount = 0;
-                    for (int sy = 0; sy < aa; sy++)
-                    {
-                        for (int sx = 0; sx < aa; sx++)
-                        {
-                            float fx = px + (sx + 0.5f) / aa;
-                            float fy = py + (sy + 0.5f) / aa;
-                            float rx = (fx / size - 0.5f) * targetSize.x;
-                            float ry = (fy / size - 0.5f) * targetSize.y;
-                            float localX = (rx - frameCenter.x) / halfFW;
-                            float localY = (ry - frameCenter.y) / halfFH;
-                            if (Mathf.Abs(localX) <= 1f && Mathf.Abs(localY) <= 1f && IsInsideShape(currentShape, localX, localY))
-                                insideCount++;
-                        }
-                    }
-                    byte alpha = (byte)(255 - Mathf.RoundToInt(insideCount * invAaSq * 255f));
-                    pixels[py * size + px] = new Color32(255, 255, 255, alpha);
+                    float rx = ((px + 0.5f) / size - 0.5f) * targetSize.x;
+                    float ry = ((py + 0.5f) / size - 0.5f) * targetSize.y;
+                    float localX = (rx - frameCenter.x) / halfFW;
+                    float localY = (ry - frameCenter.y) / halfFH;
+                    bool inside = Mathf.Abs(localX) <= 1f && Mathf.Abs(localY) <= 1f && IsInsideShape(currentShape, localX, localY);
+                    pixels[py * size + px] = inside ? new Color32(255, 255, 255, 0) : new Color32(255, 255, 255, 255);
                 }
             }
 
