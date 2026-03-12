@@ -181,13 +181,16 @@ namespace PocoRender.UI.Modules
             Button eraserBtn = CreateToolbarIconButton(ct, "EditIcons/e_edit_eraser", "Eraser");
             eraserBtn.onClick.AddListener(() => controller.ToggleEraserTool());
 
+            Button opacityBtn = CreateToolbarIconButton(ct, "EditIcons/p_edit_opacity", "Opacity");
+            opacityBtn.onClick.AddListener(() => controller.ToggleOpacityTool());
+
             // Separator between icon tools and text tools
             GameObject sep = UIFactory.CreateObject("Separator", ct);
             sep.GetComponent<RectTransform>().sizeDelta = new Vector2(1, 20);
             sep.AddComponent<Image>().color = new Color(0.82f, 0.82f, 0.82f);
             sep.AddComponent<LayoutElement>().minWidth = 1;
 
-            string[] tools = { "Opacity", "Image Cutting", "UpScaler", "AI Remover", "Cutout", "Outline" };
+            string[] tools = { "Image Cutting", "UpScaler", "AI Remover", "Cutout", "Outline" };
             foreach (var tool in tools)
                 UIFactory.CreateButton(tool, ct, Vector2.zero, new Vector2(0, 30), Color.white, Color.black).AddComponent<LayoutElement>().flexibleWidth = 1;
 
@@ -308,6 +311,115 @@ namespace PocoRender.UI.Modules
             eraserPanel.SetActive(false);
             eraserPanel.transform.SetAsLastSibling();
             controller.eraserOptionsPanel = eraserPanel;
+
+            CreateOpacityOptionsPanel(workspace, controller, cardSprite);
+        }
+
+        private static void CreateOpacityOptionsPanel(GameObject workspace, CanvasController controller, Sprite cardSprite)
+        {
+            GameObject opacityPanel = UIFactory.CreateObject("OpacityOptionsPanel", workspace);
+            RectTransform opRect = opacityPanel.GetComponent<RectTransform>();
+            opRect.anchorMin = new Vector2(0.5f, 1f); opRect.anchorMax = new Vector2(0.5f, 1f); opRect.pivot = new Vector2(0.5f, 1f);
+            opRect.sizeDelta = new Vector2(280, 48); opRect.anchoredPosition = new Vector2(0, -42);
+            Image opBg = opacityPanel.AddComponent<Image>();
+            opBg.color = Color.white;
+            if (cardSprite != null) { opBg.sprite = cardSprite; opBg.type = Image.Type.Sliced; }
+            opacityPanel.AddComponent<Outline>().effectColor = new Color(0.9f, 0.9f, 0.9f);
+
+            HorizontalLayoutGroup opHlg = opacityPanel.AddComponent<HorizontalLayoutGroup>();
+            opHlg.spacing = 6;
+            opHlg.padding = new RectOffset(12, 12, 8, 8);
+            opHlg.childAlignment = TextAnchor.MiddleCenter;
+            opHlg.childControlWidth = false;
+            opHlg.childControlHeight = false;
+            opHlg.childForceExpandWidth = false;
+            opHlg.childForceExpandHeight = false;
+
+            GameObject labelObj = UIFactory.CreateText("Opacity", opacityPanel, 11, new Color(0.3f, 0.3f, 0.3f), Vector2.zero, new Vector2(48, 20));
+            labelObj.GetComponent<Text>().alignment = TextAnchor.MiddleRight;
+
+            GameObject sliderObj = CreateOpacitySlider(opacityPanel);
+
+            GameObject valObj = UIFactory.CreateText("100%", opacityPanel, 11, new Color(0.2f, 0.2f, 0.2f), Vector2.zero, new Vector2(36, 20));
+            Text valText = valObj.GetComponent<Text>();
+            valText.alignment = TextAnchor.MiddleCenter;
+
+            Slider slider = sliderObj.GetComponent<Slider>();
+            slider.onValueChanged.AddListener((val) =>
+            {
+                int pct = Mathf.RoundToInt(val);
+                valText.text = pct + "%";
+                controller.SetLayerOpacity(pct / 100f);
+            });
+
+            int initialPct = Mathf.RoundToInt(controller.GetCurrentLayerOpacity() * 100f);
+            slider.value = initialPct;
+
+            opacityPanel.SetActive(false);
+            opacityPanel.transform.SetAsLastSibling();
+            controller.opacityOptionsPanel = opacityPanel;
+            controller.opacitySlider = slider;
+        }
+
+        private static GameObject CreateOpacitySlider(GameObject parent)
+        {
+            GameObject sliderObj = UIFactory.CreateObject("OpacitySlider", parent);
+            sliderObj.GetComponent<RectTransform>().sizeDelta = new Vector2(160, 20);
+
+            GameObject bgTrack = UIFactory.CreateObject("Background", sliderObj);
+            RectTransform bgRt = bgTrack.GetComponent<RectTransform>();
+            bgRt.anchorMin = new Vector2(0, 0.35f); bgRt.anchorMax = new Vector2(1, 0.65f);
+            bgRt.sizeDelta = Vector2.zero; bgRt.anchoredPosition = Vector2.zero;
+            Image bgImg = bgTrack.AddComponent<Image>();
+            bgImg.color = new Color(0.82f, 0.82f, 0.82f);
+            Sprite trackSprite = UIFactory.CreateRoundedRectSprite(64, 16, 8);
+            if (trackSprite != null) { bgImg.sprite = trackSprite; bgImg.type = Image.Type.Sliced; }
+
+            GameObject fillArea = UIFactory.CreateObject("Fill Area", sliderObj);
+            RectTransform faRt = fillArea.GetComponent<RectTransform>();
+            faRt.anchorMin = new Vector2(0, 0.35f); faRt.anchorMax = new Vector2(1, 0.65f);
+            faRt.offsetMin = Vector2.zero; faRt.offsetMax = Vector2.zero;
+
+            GameObject fill = UIFactory.CreateObject("Fill", fillArea);
+            RectTransform fillRt = fill.GetComponent<RectTransform>();
+            fillRt.anchorMin = Vector2.zero; fillRt.anchorMax = new Vector2(0, 1);
+            fillRt.sizeDelta = Vector2.zero;
+            Image fillImg = fill.AddComponent<Image>();
+            fillImg.color = new Color(0.31f, 0.86f, 0.45f);
+            if (trackSprite != null) { fillImg.sprite = trackSprite; fillImg.type = Image.Type.Sliced; }
+
+            GameObject handleArea = UIFactory.CreateObject("Handle Slide Area", sliderObj);
+            RectTransform haRt = handleArea.GetComponent<RectTransform>();
+            haRt.anchorMin = Vector2.zero; haRt.anchorMax = Vector2.one;
+            haRt.offsetMin = new Vector2(10, 0); haRt.offsetMax = new Vector2(-10, 0);
+
+            GameObject handle = UIFactory.CreateObject("Handle", handleArea);
+            RectTransform hRt = handle.GetComponent<RectTransform>();
+            hRt.sizeDelta = new Vector2(20, 20);
+            Image handleImg = handle.AddComponent<Image>();
+            Sprite brushSpr = Resources.Load<Sprite>("EditIcons/p_brush_press");
+            if (brushSpr != null)
+            {
+                handleImg.sprite = brushSpr;
+                handleImg.type = Image.Type.Simple;
+                handleImg.preserveAspect = true;
+                handleImg.color = Color.white;
+            }
+            else
+            {
+                handleImg.color = new Color(0.25f, 0.25f, 0.25f);
+            }
+
+            Slider slider = sliderObj.AddComponent<Slider>();
+            slider.fillRect = fillRt;
+            slider.handleRect = hRt;
+            slider.targetGraphic = handleImg;
+            slider.minValue = 0;
+            slider.maxValue = 100;
+            slider.wholeNumbers = true;
+            slider.value = 100;
+
+            return sliderObj;
         }
 
         private static GameObject CreateEraserSlider(GameObject parent)

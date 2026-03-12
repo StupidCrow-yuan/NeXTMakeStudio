@@ -14,6 +14,8 @@ namespace PocoRender.UI
         public GameObject contextToolbar;
         public GameObject cropOptionsPanel;
         public GameObject eraserOptionsPanel;
+        public GameObject opacityOptionsPanel;
+        public Slider opacitySlider;
         
         // Position Info Fields (editable)
         public InputField posXInput;
@@ -237,6 +239,7 @@ namespace PocoRender.UI
                 activeEraserSession = null;
             }
             if (eraserOptionsPanel != null) eraserOptionsPanel.SetActive(false);
+            if (opacityOptionsPanel != null) opacityOptionsPanel.SetActive(false);
 
             if (currentSelection != null)
             {
@@ -444,6 +447,46 @@ namespace PocoRender.UI
         public void RecordErase(EraseCommand cmd)
         {
             commandHistory.AddToHistory(cmd);
+        }
+
+        // ---- Opacity Tool ----
+
+        public void ToggleOpacityTool()
+        {
+            if (currentSelection == null)
+            {
+                ShowInfoPopup("Select an image layer first");
+                return;
+            }
+
+            if (opacityOptionsPanel == null) return;
+
+            bool show = !opacityOptionsPanel.activeSelf;
+            opacityOptionsPanel.SetActive(show);
+
+            if (show && opacitySlider != null)
+            {
+                opacitySlider.value = Mathf.RoundToInt(GetCurrentLayerOpacity() * 100f);
+            }
+        }
+
+        public float GetCurrentLayerOpacity()
+        {
+            if (currentSelection == null) return 1f;
+            Image img = currentSelection.GetComponent<Image>();
+            if (img == null) return 1f;
+            return img.color.a;
+        }
+
+        public void SetLayerOpacity(float alpha)
+        {
+            if (currentSelection == null) return;
+            Image img = currentSelection.GetComponent<Image>();
+            if (img == null) return;
+
+            Color c = img.color;
+            c.a = Mathf.Clamp01(alpha);
+            img.color = c;
         }
 
         public void UpdatePrintAreaList()
