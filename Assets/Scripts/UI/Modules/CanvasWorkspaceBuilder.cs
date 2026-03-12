@@ -1,5 +1,6 @@
 using UnityEngine;
 using UnityEngine.UI;
+using UnityEngine.EventSystems;
 using PocoRender.UI.Core;
 
 namespace PocoRender.UI.Modules
@@ -184,13 +185,16 @@ namespace PocoRender.UI.Modules
             Button opacityBtn = CreateToolbarIconButton(ct, "EditIcons/p_edit_opacity", "Opacity");
             opacityBtn.onClick.AddListener(() => controller.ToggleOpacityTool());
 
+            Button splitBtn = CreateToolbarIconButton(ct, "EditIcons/p_edit_cell_split", "Image Splitting");
+            splitBtn.onClick.AddListener(() => controller.ToggleSplitTool());
+
             // Separator between icon tools and text tools
             GameObject sep = UIFactory.CreateObject("Separator", ct);
             sep.GetComponent<RectTransform>().sizeDelta = new Vector2(1, 20);
             sep.AddComponent<Image>().color = new Color(0.82f, 0.82f, 0.82f);
             sep.AddComponent<LayoutElement>().minWidth = 1;
 
-            string[] tools = { "Image Cutting", "UpScaler", "AI Remover", "Cutout", "Outline" };
+            string[] tools = { "UpScaler", "AI Remover", "Cutout", "Outline" };
             foreach (var tool in tools)
                 UIFactory.CreateButton(tool, ct, Vector2.zero, new Vector2(0, 30), Color.white, Color.black).AddComponent<LayoutElement>().flexibleWidth = 1;
 
@@ -359,6 +363,155 @@ namespace PocoRender.UI.Modules
             opacityPanel.transform.SetAsLastSibling();
             controller.opacityOptionsPanel = opacityPanel;
             controller.opacitySlider = slider;
+
+            CreateSplitOptionsPanel(workspace, controller, cardSprite);
+        }
+
+        private static void CreateSplitOptionsPanel(GameObject workspace, CanvasController controller, Sprite cardSprite)
+        {
+            GameObject splitPanel = UIFactory.CreateObject("SplitOptionsPanel", workspace);
+            RectTransform spRect = splitPanel.GetComponent<RectTransform>();
+            spRect.anchorMin = new Vector2(0.5f, 1f); spRect.anchorMax = new Vector2(0.5f, 1f); spRect.pivot = new Vector2(0.5f, 1f);
+            spRect.sizeDelta = new Vector2(240, 260); spRect.anchoredPosition = new Vector2(0, -42);
+            Image spBg = splitPanel.AddComponent<Image>();
+            spBg.color = Color.white;
+            if (cardSprite != null) { spBg.sprite = cardSprite; spBg.type = Image.Type.Sliced; }
+            splitPanel.AddComponent<Outline>().effectColor = new Color(0.9f, 0.9f, 0.9f);
+
+            VerticalLayoutGroup spVlg = splitPanel.AddComponent<VerticalLayoutGroup>();
+            spVlg.spacing = 6;
+            spVlg.padding = new RectOffset(12, 12, 10, 10);
+            spVlg.childAlignment = TextAnchor.MiddleCenter;
+            spVlg.childControlWidth = true;
+            spVlg.childControlHeight = false;
+            spVlg.childForceExpandWidth = true;
+            spVlg.childForceExpandHeight = false;
+
+            // Title
+            GameObject titleObj = UIFactory.CreateText("Image Splitting", splitPanel, 13, new Color(0.15f, 0.15f, 0.15f),
+                Vector2.zero, new Vector2(0, 20), TextAnchor.MiddleLeft, FontStyle.Bold);
+            titleObj.GetComponent<RectTransform>().sizeDelta = new Vector2(0, 20);
+
+            // --- Preset grid: Row 1 ---
+            GameObject row1 = UIFactory.CreateObject("PresetRow1", splitPanel);
+            row1.GetComponent<RectTransform>().sizeDelta = new Vector2(0, 58);
+            HorizontalLayoutGroup r1Hlg = row1.AddComponent<HorizontalLayoutGroup>();
+            r1Hlg.spacing = 8; r1Hlg.childAlignment = TextAnchor.MiddleCenter;
+            r1Hlg.childControlWidth = false; r1Hlg.childControlHeight = false;
+            r1Hlg.childForceExpandWidth = false; r1Hlg.childForceExpandHeight = false;
+
+            CreateSplitPresetButton(row1, "EditIcons/p_split_2_2", "2*2", 2, 2, controller);
+            CreateSplitPresetButton(row1, "EditIcons/p_split_3_1", "3*1", 3, 1, controller);
+            CreateSplitPresetButton(row1, "EditIcons/p_split2_3", "2*3", 2, 3, controller);
+
+            // --- Preset grid: Row 2 ---
+            GameObject row2 = UIFactory.CreateObject("PresetRow2", splitPanel);
+            row2.GetComponent<RectTransform>().sizeDelta = new Vector2(0, 58);
+            HorizontalLayoutGroup r2Hlg = row2.AddComponent<HorizontalLayoutGroup>();
+            r2Hlg.spacing = 8; r2Hlg.childAlignment = TextAnchor.MiddleCenter;
+            r2Hlg.childControlWidth = false; r2Hlg.childControlHeight = false;
+            r2Hlg.childForceExpandWidth = false; r2Hlg.childForceExpandHeight = false;
+
+            CreateSplitPresetButton(row2, "EditIcons/p_split_3_3", "3*3", 3, 3, controller);
+            CreateSplitPresetButton(row2, "EditIcons/p_split_1_3", "1*3", 1, 3, controller);
+            CreateSplitPresetButton(row2, "EditIcons/p_split_3_2", "3*2", 3, 2, controller);
+
+            // --- Customize row ---
+            GameObject customRow = UIFactory.CreateObject("CustomRow", splitPanel);
+            customRow.GetComponent<RectTransform>().sizeDelta = new Vector2(0, 26);
+            HorizontalLayoutGroup crHlg = customRow.AddComponent<HorizontalLayoutGroup>();
+            crHlg.spacing = 5; crHlg.childAlignment = TextAnchor.MiddleCenter;
+            crHlg.childControlWidth = false; crHlg.childControlHeight = false;
+            crHlg.childForceExpandWidth = false; crHlg.childForceExpandHeight = false;
+
+            UIFactory.CreateText("Customize:", customRow, 11, new Color(0.35f, 0.35f, 0.35f), Vector2.zero, new Vector2(68, 22));
+
+            InputField colsInput = CreateSmallInputField(customRow, "3");
+            controller.splitColsInput = colsInput;
+            colsInput.onValueChanged.AddListener((_) => controller.UpdateSplitInfo());
+
+            UIFactory.CreateText("*", customRow, 13, new Color(0.3f, 0.3f, 0.3f), Vector2.zero, new Vector2(12, 22), TextAnchor.MiddleCenter);
+
+            InputField rowsInput = CreateSmallInputField(customRow, "4");
+            controller.splitRowsInput = rowsInput;
+            rowsInput.onValueChanged.AddListener((_) => controller.UpdateSplitInfo());
+
+            // --- Slice info ---
+            GameObject infoObj = UIFactory.CreateText("Each Slice: --", splitPanel, 10, new Color(0.5f, 0.5f, 0.5f),
+                Vector2.zero, new Vector2(0, 18), TextAnchor.MiddleLeft);
+            controller.splitInfoText = infoObj.GetComponent<Text>();
+
+            // --- OK button ---
+            var okBtn = UIFactory.CreateButton("OK", splitPanel, Vector2.zero, new Vector2(0, 32), new Color(0.31f, 0.86f, 0.45f), Color.white);
+            okBtn.GetComponent<Button>().onClick.AddListener(() => controller.ApplySplitTool());
+            okBtn.GetComponentInChildren<Text>().fontSize = 13;
+            okBtn.GetComponentInChildren<Text>().fontStyle = FontStyle.Bold;
+
+            splitPanel.SetActive(false);
+            splitPanel.transform.SetAsLastSibling();
+            controller.splitOptionsPanel = splitPanel;
+        }
+
+        private static void CreateSplitPresetButton(GameObject parent, string iconPath, string label, int cols, int rows, CanvasController controller)
+        {
+            GameObject item = UIFactory.CreateObject("Split_" + label, parent);
+            item.GetComponent<RectTransform>().sizeDelta = new Vector2(62, 58);
+
+            VerticalLayoutGroup vlg = item.AddComponent<VerticalLayoutGroup>();
+            vlg.spacing = 2; vlg.childAlignment = TextAnchor.MiddleCenter;
+            vlg.childControlWidth = true; vlg.childControlHeight = false;
+            vlg.childForceExpandWidth = true; vlg.childForceExpandHeight = false;
+
+            GameObject btnObj = UIFactory.CreateObject("Icon", item);
+            btnObj.GetComponent<RectTransform>().sizeDelta = new Vector2(40, 36);
+            Image btnImg = btnObj.AddComponent<Image>();
+            btnImg.color = new Color(0.96f, 0.96f, 0.96f);
+            Sprite spr = Resources.Load<Sprite>(iconPath);
+            if (spr != null)
+            {
+                btnImg.sprite = spr;
+                btnImg.type = Image.Type.Simple;
+                btnImg.preserveAspect = true;
+                btnImg.color = Color.white;
+            }
+            Button btn = btnObj.AddComponent<Button>();
+            btn.targetGraphic = btnImg;
+            btn.onClick.AddListener(() =>
+            {
+                if (controller.splitColsInput != null) controller.splitColsInput.text = cols.ToString();
+                if (controller.splitRowsInput != null) controller.splitRowsInput.text = rows.ToString();
+                controller.UpdateSplitInfo();
+            });
+
+            GameObject labelObj = UIFactory.CreateText(label, item, 10, new Color(0.4f, 0.4f, 0.4f),
+                Vector2.zero, new Vector2(0, 14), TextAnchor.MiddleCenter);
+        }
+
+        private static InputField CreateSmallInputField(GameObject parent, string defaultText)
+        {
+            GameObject obj = UIFactory.CreateObject("InputField", parent);
+            obj.GetComponent<RectTransform>().sizeDelta = new Vector2(34, 22);
+            Image bg = obj.AddComponent<Image>();
+            bg.color = new Color(0.96f, 0.96f, 0.96f);
+
+            GameObject textObj = UIFactory.CreateText(defaultText, obj, 12, new Color(0.15f, 0.15f, 0.15f),
+                Vector2.zero, Vector2.zero, TextAnchor.MiddleCenter);
+            UIFactory.Stretch(textObj.GetComponent<RectTransform>());
+            Text textComp = textObj.GetComponent<Text>();
+            textComp.raycastTarget = true;
+
+            GameObject placeholder = UIFactory.CreateText("0", obj, 12, new Color(0.7f, 0.7f, 0.7f),
+                Vector2.zero, Vector2.zero, TextAnchor.MiddleCenter);
+            UIFactory.Stretch(placeholder.GetComponent<RectTransform>());
+
+            InputField input = obj.AddComponent<InputField>();
+            input.textComponent = textComp;
+            input.placeholder = placeholder.GetComponent<Text>();
+            input.text = defaultText;
+            input.contentType = InputField.ContentType.IntegerNumber;
+            input.characterLimit = 2;
+
+            return input;
         }
 
         private static GameObject CreateOpacitySlider(GameObject parent)
@@ -486,7 +639,7 @@ namespace PocoRender.UI.Modules
             return sliderObj;
         }
 
-        private static Button CreateToolbarIconButton(GameObject parent, string iconPath, string fallbackText)
+        private static Button CreateToolbarIconButton(GameObject parent, string iconPath, string tooltipText)
         {
             GameObject buttonObj = UIFactory.CreateButton("", parent, Vector2.zero, new Vector2(38, 28), Color.white, Color.black);
             LayoutElement le = buttonObj.AddComponent<LayoutElement>();
@@ -504,8 +657,11 @@ namespace PocoRender.UI.Modules
             else
             {
                 Object.Destroy(buttonObj.transform.GetChild(0).gameObject);
-                UIFactory.CreateText(fallbackText, buttonObj, 12, Color.black, Vector2.zero, Vector2.zero);
+                UIFactory.CreateText(tooltipText, buttonObj, 12, Color.black, Vector2.zero, Vector2.zero);
             }
+
+            UITooltip tip = buttonObj.AddComponent<UITooltip>();
+            tip.text = tooltipText;
 
             return buttonObj.GetComponent<Button>();
         }

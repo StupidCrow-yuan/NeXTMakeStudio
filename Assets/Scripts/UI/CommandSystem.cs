@@ -277,6 +277,38 @@ namespace PocoRender.UI
             onComplete?.Invoke();
         }
     }
+
+    public class SplitCommand : ICommand
+    {
+        private GameObject sourceObject;
+        private System.Collections.Generic.List<GameObject> pieces;
+        private System.Action onComplete;
+
+        public SplitCommand(GameObject sourceObject,
+                            System.Collections.Generic.List<GameObject> pieces,
+                            System.Action onComplete = null)
+        {
+            this.sourceObject = sourceObject;
+            this.pieces = pieces;
+            this.onComplete = onComplete;
+        }
+
+        public void Execute()
+        {
+            if (sourceObject != null) sourceObject.SetActive(false);
+            foreach (var p in pieces)
+                if (p != null) p.SetActive(true);
+            onComplete?.Invoke();
+        }
+
+        public void Undo()
+        {
+            foreach (var p in pieces)
+                if (p != null) p.SetActive(false);
+            if (sourceObject != null) sourceObject.SetActive(true);
+            onComplete?.Invoke();
+        }
+    }
 }
 
 

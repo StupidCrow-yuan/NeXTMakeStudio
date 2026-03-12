@@ -16,6 +16,10 @@ namespace PocoRender.UI
         public GameObject eraserOptionsPanel;
         public GameObject opacityOptionsPanel;
         public Slider opacitySlider;
+        public GameObject splitOptionsPanel;
+        public InputField splitColsInput;
+        public InputField splitRowsInput;
+        public Text splitInfoText;
         
         // Position Info Fields (editable)
         public InputField posXInput;
@@ -240,6 +244,7 @@ namespace PocoRender.UI
             }
             if (eraserOptionsPanel != null) eraserOptionsPanel.SetActive(false);
             if (opacityOptionsPanel != null) opacityOptionsPanel.SetActive(false);
+            if (splitOptionsPanel != null) splitOptionsPanel.SetActive(false);
 
             if (currentSelection != null)
             {
@@ -292,9 +297,10 @@ namespace PocoRender.UI
                 return;
             }
 
-            // Cancel any active eraser first
             if (activeEraserSession != null)
                 CancelEraserTool();
+            if (opacityOptionsPanel != null) opacityOptionsPanel.SetActive(false);
+            if (splitOptionsPanel != null) splitOptionsPanel.SetActive(false);
 
             StartCropTool();
         }
@@ -380,11 +386,10 @@ namespace PocoRender.UI
                 return;
             }
 
-            // Cancel any active crop first
             if (activeCropSession != null)
-            {
                 CancelCropTool();
-            }
+            if (opacityOptionsPanel != null) opacityOptionsPanel.SetActive(false);
+            if (splitOptionsPanel != null) splitOptionsPanel.SetActive(false);
 
             StartEraserTool();
         }
@@ -462,6 +467,11 @@ namespace PocoRender.UI
             if (opacityOptionsPanel == null) return;
 
             bool show = !opacityOptionsPanel.activeSelf;
+
+            if (cropOptionsPanel != null) cropOptionsPanel.SetActive(false);
+            if (eraserOptionsPanel != null) eraserOptionsPanel.SetActive(false);
+            if (splitOptionsPanel != null) splitOptionsPanel.SetActive(false);
+
             opacityOptionsPanel.SetActive(show);
 
             if (show && opacitySlider != null)
@@ -487,6 +497,130 @@ namespace PocoRender.UI
             Color c = img.color;
             c.a = Mathf.Clamp01(alpha);
             img.color = c;
+        }
+
+        // ---- Image Split Tool ----
+
+        public void ToggleSplitTool()
+        {
+            if (currentSelection == null)
+            {
+                ShowInfoPopup("Select an image layer first");
+                return;
+            }
+
+            if (splitOptionsPanel == null) return;
+            bool show = !splitOptionsPanel.activeSelf;
+
+            if (activeCropSession != null) CancelCropTool();
+            if (activeEraserSession != null) { ExitEraserTool(); }
+            if (cropOptionsPanel != null) cropOptionsPanel.SetActive(false);
+            if (eraserOptionsPanel != null) eraserOptionsPanel.SetActive(false);
+            if (opacityOptionsPanel != null) opacityOptionsPanel.SetActive(false);
+
+            splitOptionsPanel.SetActive(show);
+            if (show) UpdateSplitInfo();
+        }
+
+        public void UpdateSplitInfo()
+        {
+            if (splitInfoText == null || currentSelection == null) return;
+            int cols = ParseSplitInput(splitColsInput, 2);
+            int rows = ParseSplitInput(splitRowsInput, 2);
+            if (cols < 1 || rows < 1) { splitInfoText.text = "Each Slice: --"; return; }
+
+            RectTransform selRt = currentSelection.GetComponent<RectTransform>();
+            if (selRt == null) { splitInfoText.text = "Each Slice: --"; return; }
+
+            float sliceW = selRt.sizeDelta.x / cols;
+            float sliceH = selRt.sizeDelta.y / rows;
+            splitInfoText.text = $"Each Slice: {sliceW:F1}(W) x {sliceH:F1}(H)";
+        }
+
+        public void ApplySplitTool()
+        {
+            if (currentSelection == null) return;
+            int cols = ParseSplitInput(splitColsInput, 2);
+            int rows = ParseSplitInput(splitRowsInput, 2);
+            if (cols < 1 || rows < 1 || (cols == 1 && rows == 1)) return;
+
+            Image srcImage = currentSelection.GetComponent<Image>();
+            if (srcImage == null || srcImage.sprite == null) return;
+
+            RectTransform srcRt = currentSelection.GetComponent<RectTransform>();
+            Vector2 srcSize = srcRt.sizeDelta;
+            Vector2 srcPos = srcRt.anchoredPosition;
+
+            Texture2D srcTex = TextureEffects.SpriteTextureUtil.ExtractSpriteTexture(srcImage.sprite, 0);
+            if (srcTex == null) return;
+
+            float gap = 6f;
+            float totalGapX = (cols - 1) * gap;
+            float totalGapY = (rows - 1) * gap;
+            float pieceW = (srcSize.x - totalGapX) / cols;
+            float pieceH = (srcSize.y - totalGapY) / rows;
+
+            GameObject sourceObj = currentSelection;
+            Deselect();
+            sourceObj.SetActive(false);
+
+            var pieces = new System.Collections.Generic.List<GameObject>();
+
+            for (int r = 0; r < rows; r++)
+            {
+                for (int c = 0; c < cols; c++)
+                {
+                    int texX = Mathf.RoundToInt((float)c / cols * srcTex.width);
+                    int texX2 = Mathf.RoundToInt((float)(c + 1) / cols * srcTex.width);
+                    int texY = Mathf.RoundToInt((float)(rows - 1 - r) / rows * srcTex.height);
+                    int texY2 = Mathf.RoundToInt((float)(rows - r) / rows * srcTex.height);
+                    int tw = Mathf.Max(1, texX2 - texX);
+                    int th = Mathf.Max(1, texY2 - texY);
+
+                    Color[] pixels = srcTex.GetPixels(texX, texY, tw, th);
+                    Texture2D pieceTex = new Texture2D(tw, th, TextureFormat.RGBA32, false, true);
+                    pieceTex.SetPixels(pixels);
+                    pieceTex.Apply();
+
+                    Sprite pieceSpr = Sprite.Create(pieceTex,
+                        new Rect(0, 0, tw, th), new Vector2(0.5f, 0.5f), 100f, 0, SpriteMeshType.FullRect);
+
+                    float px = srcPos.x - srcSize.x * 0.5f + c * (pieceW + gap) + pieceW * 0.5f;
+                    float py = srcPos.y + srcSize.y * 0.5f - r * (pieceH + gap) - pieceH * 0.5f;
+
+                    string pieceName = $"Split_{r}_{c}";
+                    GameObject pieceObj = Core.UIFactory.CreateObject(pieceName, paper.gameObject);
+                    RectTransform pRt = pieceObj.GetComponent<RectTransform>();
+                    pRt.sizeDelta = new Vector2(pieceW, pieceH);
+                    pRt.anchoredPosition = new Vector2(px, py);
+
+                    Image pieceImg = pieceObj.AddComponent<Image>();
+                    pieceImg.sprite = pieceSpr;
+                    pieceImg.preserveAspect = false;
+
+                    Modules.CanvasWorkspaceBuilder.AddManipulationComponents(pieceObj);
+                    pieces.Add(pieceObj);
+                }
+            }
+
+            var splitCmd = new SplitCommand(sourceObj, pieces, () =>
+            {
+                UpdateLayersPanel();
+                if (globalInfoPanel != null && globalInfoPanel.activeSelf) UpdatePrintAreaList();
+            });
+            commandHistory.AddToHistory(splitCmd);
+
+            if (splitOptionsPanel != null) splitOptionsPanel.SetActive(false);
+            UpdateLayersPanel();
+        }
+
+        private int ParseSplitInput(InputField field, int fallback)
+        {
+            if (field == null) return fallback;
+            int val;
+            if (int.TryParse(field.text, out val) && val >= 1 && val <= 20)
+                return val;
+            return fallback;
         }
 
         public void UpdatePrintAreaList()
