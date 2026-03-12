@@ -1,4 +1,4 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 using UnityEngine;
 
 namespace PocoRender.UI
@@ -104,6 +104,45 @@ namespace PocoRender.UI
         {
             if (target == null) return;
             target.rotation = oldRot;
+            onComplete?.Invoke();
+        }
+    }
+
+    public class ResizeCommand : ICommand
+    {
+        private RectTransform target;
+        private Vector2 oldSize;
+        private Vector2 newSize;
+        private Vector2 oldPos;
+        private Vector2 newPos;
+        private System.Action onComplete;
+
+        public ResizeCommand(RectTransform target,
+                             Vector2 oldSize, Vector2 newSize,
+                             Vector2 oldPos, Vector2 newPos,
+                             System.Action onComplete = null)
+        {
+            this.target = target;
+            this.oldSize = oldSize;
+            this.newSize = newSize;
+            this.oldPos = oldPos;
+            this.newPos = newPos;
+            this.onComplete = onComplete;
+        }
+
+        public void Execute()
+        {
+            if (target == null) return;
+            target.sizeDelta = newSize;
+            target.anchoredPosition = newPos;
+            onComplete?.Invoke();
+        }
+
+        public void Undo()
+        {
+            if (target == null) return;
+            target.sizeDelta = oldSize;
+            target.anchoredPosition = oldPos;
             onComplete?.Invoke();
         }
     }

@@ -85,6 +85,7 @@ namespace PocoRender.UI
         
         private GameObject currentSelection;
         private GameObject rotationHandle;
+        private GameObject selectionFrame;
         private Outline currentOutline;
 
         private float paperWidth = 600f;
@@ -135,6 +136,19 @@ namespace PocoRender.UI
             commandHistory.AddToHistory(new RotateCommand(rt, oldRot, newRot, UpdatePositionInfo));
         }
 
+        public void RecordResize(RectTransform rt,
+                                 Vector2 oldSize, Vector2 newSize,
+                                 Vector2 oldPos, Vector2 newPos)
+        {
+            commandHistory.AddToHistory(new ResizeCommand(
+                rt, oldSize, newSize, oldPos, newPos,
+                () =>
+                {
+                    UpdatePositionInfo();
+                    OnObjectMoved();
+                }));
+        }
+
         public void RecordAdd(GameObject obj)
         {
             commandHistory.AddToHistory(new AddObjectCommand(obj, paper));
@@ -167,10 +181,7 @@ namespace PocoRender.UI
             currentSelection = obj;
             
             currentOutline = currentSelection.GetComponent<Outline>();
-            if (currentOutline == null) currentOutline = currentSelection.AddComponent<Outline>();
-            currentOutline.effectColor = Color.green;
-            currentOutline.effectDistance = new Vector2(2, -2);
-            currentOutline.enabled = true;
+            if (currentOutline != null) currentOutline.enabled = false;
             
             // Fix: Ensure outline respects sprite shape if it's an Image
             Image selImg = currentSelection.GetComponent<Image>();
@@ -183,6 +194,7 @@ namespace PocoRender.UI
             }
 
             if (contextToolbar != null) contextToolbar.SetActive(true);
+            CreateSelectionFrame();
             CreateRotationHandle();
 
             if (positionPanel != null) positionPanel.SetActive(true);
@@ -206,10 +218,12 @@ namespace PocoRender.UI
             if (currentSelection != null)
             {
                 if (currentOutline != null) currentOutline.enabled = false;
+                DestroySelectionFrame();
                 DestroyRotationHandle();
             }
 
             currentSelection = null;
+            Cursor.SetCursor(null, Vector2.zero, CursorMode.Auto);
             if (contextToolbar != null) contextToolbar.SetActive(false);
             
             if (positionPanel != null) positionPanel.SetActive(false);
@@ -1366,9 +1380,11 @@ namespace PocoRender.UI
         private void CreateRotationHandle()
         {
             if (rotationHandle != null) Destroy(rotationHandle);
+            if (selectionFrame == null) return;
             
             rotationHandle = new GameObject("RotationHandle");
-            rotationHandle.transform.SetParent(currentSelection.transform, false);
+            rotationHandle.transform.SetParent(selectionFrame.transform, false);
+            rotationHandle.AddComponent<SelectionAdornment>();
             
             Image img = rotationHandle.AddComponent<Image>();
             Sprite rotateSprite = Resources.Load<Sprite>("EditIcons/p_rotate_img");
@@ -1385,17 +1401,101 @@ namespace PocoRender.UI
             
             RectTransform rt = rotationHandle.GetComponent<RectTransform>();
             rt.sizeDelta = new Vector2(24, 24);
-            float yPos = -(currentSelection.GetComponent<RectTransform>().rect.height / 2f) - 30f;
-            rt.anchoredPosition = new Vector2(0, yPos);
+            rt.anchorMin = new Vector2(0.5f, 0f);
+            rt.anchorMax = new Vector2(0.5f, 0f);
+            rt.pivot = new Vector2(0.5f, 0.5f);
+            rt.anchoredPosition = new Vector2(0, -30f);
             
             RotationHandler handler = rotationHandle.AddComponent<RotationHandler>();
             handler.target = currentSelection.GetComponent<RectTransform>();
             handler.controller = this;
         }
 
+        private void CreateSelectionFrame()
+        {
+            DestroySelectionFrame();
+            if (currentSelection == null) return;
+
+            RectTransform targetRt = currentSelection.GetComponent<RectTransform>();
+            if (targetRt == null) return;
+
+            selectionFrame = new GameObject("SelectionFrame", typeof(RectTransform), typeof(SelectionAdornment));
+            selectionFrame.transform.SetParent(currentSelection.transform, false);
+            selectionFrame.transform.SetAsLastSibling();
+
+            RectTransform frameRt = selectionFrame.GetComponent<RectTransform>();
+            frameRt.anchorMin = Vector2.zero;
+            frameRt.anchorMax = Vector2.one;
+            frameRt.offsetMin = Vector2.zero;
+            frameRt.offsetMax = Vector2.zero;
+            frameRt.pivot = targetRt.pivot;
+
+            CreateSelectionEdge("TopEdge", selectionFrame.transform, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(0f, 2f), Vector2.zero);
+            CreateSelectionEdge("BottomEdge", selectionFrame.transform, new Vector2(0f, 0f), new Vector2(1f, 0f), new Vector2(0f, 2f), Vector2.zero);
+            CreateSelectionEdge("LeftEdge", selectionFrame.transform, new Vector2(0f, 0f), new Vector2(0f, 1f), new Vector2(2f, 0f), Vector2.zero);
+            CreateSelectionEdge("RightEdge", selectionFrame.transform, new Vector2(1f, 0f), new Vector2(1f, 1f), new Vector2(2f, 0f), Vector2.zero);
+
+            CreateCornerHandle("TopLeftHandle", selectionFrame.transform, new Vector2(0f, 1f), new Vector2(-1, 1));
+            CreateCornerHandle("TopRightHandle", selectionFrame.transform, new Vector2(1f, 1f), new Vector2(1, 1));
+            CreateCornerHandle("BottomLeftHandle", selectionFrame.transform, new Vector2(0f, 0f), new Vector2(-1, -1));
+            CreateCornerHandle("BottomRightHandle", selectionFrame.transform, new Vector2(1f, 0f), new Vector2(1, -1));
+        }
+
+        private void DestroySelectionFrame()
+        {
+            if (selectionFrame != null) Destroy(selectionFrame);
+            selectionFrame = null;
+        }
+
+        private static void CreateSelectionEdge(string name, Transform parent,
+                                                Vector2 anchorMin, Vector2 anchorMax,
+                                                Vector2 sizeDelta, Vector2 anchoredPosition)
+        {
+            GameObject edge = new GameObject(name, typeof(RectTransform), typeof(Image), typeof(SelectionAdornment));
+            edge.transform.SetParent(parent, false);
+
+            RectTransform rt = edge.GetComponent<RectTransform>();
+            rt.anchorMin = anchorMin;
+            rt.anchorMax = anchorMax;
+            rt.pivot = new Vector2(0.5f, 0.5f);
+            rt.sizeDelta = sizeDelta;
+            rt.anchoredPosition = anchoredPosition;
+
+            Image img = edge.GetComponent<Image>();
+            img.color = new Color(0.31f, 0.86f, 0.45f);
+            img.raycastTarget = false;
+        }
+
+        private void CreateCornerHandle(string name, Transform parent, Vector2 anchor, Vector2 signs)
+        {
+            GameObject handle = new GameObject(name, typeof(RectTransform), typeof(Image), typeof(Outline), typeof(SelectionAdornment));
+            handle.transform.SetParent(parent, false);
+
+            RectTransform rt = handle.GetComponent<RectTransform>();
+            rt.anchorMin = anchor;
+            rt.anchorMax = anchor;
+            rt.pivot = new Vector2(0.5f, 0.5f);
+            rt.sizeDelta = new Vector2(9f, 9f);
+            rt.anchoredPosition = Vector2.zero;
+
+            Image img = handle.GetComponent<Image>();
+            img.color = Color.white;
+
+            Outline outline = handle.GetComponent<Outline>();
+            outline.effectColor = new Color(0.31f, 0.86f, 0.45f);
+            outline.effectDistance = new Vector2(1f, -1f);
+
+            SelectionResizeHandle resizeHandle = handle.AddComponent<SelectionResizeHandle>();
+            resizeHandle.target = currentSelection.GetComponent<RectTransform>();
+            resizeHandle.controller = this;
+            resizeHandle.xSign = Mathf.RoundToInt(signs.x);
+            resizeHandle.ySign = Mathf.RoundToInt(signs.y);
+        }
+
         private void DestroyRotationHandle()
         {
             if (rotationHandle != null) Destroy(rotationHandle);
+            rotationHandle = null;
         }
 
         private void SetLayerRecursive(GameObject obj, int layer)

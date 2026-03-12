@@ -1326,6 +1326,15 @@ namespace PocoRender.UI.Modules
                 }
             }
 
+            var selectionAdornments = clone.GetComponentsInChildren<SelectionAdornment>(true);
+            foreach (var adornment in selectionAdornments)
+            {
+                if (adornment != null)
+                {
+                    Object.DestroyImmediate(adornment.gameObject);
+                }
+            }
+
             // Reset transform so the clone fills the canvas correctly
             RectTransform cloneRT  = clone.GetComponent<RectTransform>();
             cloneRT.anchorMin      = new Vector2(0.5f, 0.5f);
