@@ -13,6 +13,7 @@ namespace PocoRender.UI
     {
         public GameObject contextToolbar;
         public GameObject cropOptionsPanel;
+        public GameObject eraserOptionsPanel;
         
         // Position Info Fields (editable)
         public InputField posXInput;
@@ -89,6 +90,7 @@ namespace PocoRender.UI
         private GameObject selectionFrame;
         private Outline currentOutline;
         private CropToolSession activeCropSession;
+        private EraserToolSession activeEraserSession;
 
         private float paperWidth = 600f;
         private float paperHeight = 600f;
@@ -229,6 +231,13 @@ namespace PocoRender.UI
             }
             if (cropOptionsPanel != null) cropOptionsPanel.SetActive(false);
 
+            if (activeEraserSession != null)
+            {
+                activeEraserSession.ExitErase();
+                activeEraserSession = null;
+            }
+            if (eraserOptionsPanel != null) eraserOptionsPanel.SetActive(false);
+
             if (currentSelection != null)
             {
                 if (currentOutline != null) currentOutline.enabled = false;
@@ -279,6 +288,10 @@ namespace PocoRender.UI
                 }
                 return;
             }
+
+            // Cancel any active eraser first
+            if (activeEraserSession != null)
+                CancelEraserTool();
 
             StartCropTool();
         }
@@ -339,6 +352,98 @@ namespace PocoRender.UI
             activeCropSession = CropToolSession.Create(this, currentSelection);
             activeCropSession.SetPreset(CropPresetType.Free);
             if (cropOptionsPanel != null) cropOptionsPanel.SetActive(true);
+        }
+
+        // ---- Eraser Tool ----
+
+        public void ToggleEraserTool()
+        {
+            if (currentSelection == null)
+            {
+                ShowInfoPopup("Select an image layer first");
+                return;
+            }
+
+            Image selectedImage = currentSelection.GetComponent<Image>();
+            if (selectedImage == null || selectedImage.sprite == null)
+            {
+                ShowInfoPopup("Selected layer has no image");
+                return;
+            }
+
+            if (activeEraserSession != null && activeEraserSession.IsFor(currentSelection))
+            {
+                ExitEraserTool();
+                return;
+            }
+
+            // Cancel any active crop first
+            if (activeCropSession != null)
+            {
+                CancelCropTool();
+            }
+
+            StartEraserTool();
+        }
+
+        public void SetEraserBrushSize(int size)
+        {
+            if (activeEraserSession != null)
+                activeEraserSession.SetBrushSize(size);
+        }
+
+        public void ExitEraserTool()
+        {
+            if (activeEraserSession != null)
+            {
+                activeEraserSession.ExitErase();
+                activeEraserSession = null;
+            }
+            if (eraserOptionsPanel != null) eraserOptionsPanel.SetActive(false);
+            if (currentSelection != null)
+            {
+                CreateSelectionFrame();
+                CreateRotationHandle();
+                UpdatePositionInfo();
+                UpdateLayersPanel();
+            }
+        }
+
+        public void CancelEraserTool()
+        {
+            if (activeEraserSession != null)
+            {
+                activeEraserSession.CancelErase();
+                activeEraserSession = null;
+            }
+
+            if (eraserOptionsPanel != null) eraserOptionsPanel.SetActive(false);
+            if (currentSelection != null)
+            {
+                CreateSelectionFrame();
+                CreateRotationHandle();
+                UpdatePositionInfo();
+            }
+        }
+
+        private void StartEraserTool()
+        {
+            if (activeEraserSession != null)
+            {
+                activeEraserSession.CancelErase();
+                activeEraserSession = null;
+            }
+
+            DestroySelectionFrame();
+            DestroyRotationHandle();
+
+            activeEraserSession = EraserToolSession.Create(this, currentSelection);
+            if (eraserOptionsPanel != null) eraserOptionsPanel.SetActive(true);
+        }
+
+        public void RecordErase(EraseCommand cmd)
+        {
+            commandHistory.AddToHistory(cmd);
         }
 
         public void UpdatePrintAreaList()

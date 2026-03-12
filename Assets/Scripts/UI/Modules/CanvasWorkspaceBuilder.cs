@@ -172,12 +172,22 @@ namespace PocoRender.UI.Modules
             if (cardSprite != null) { ctBg.sprite = cardSprite; ctBg.type = Image.Type.Sliced; }
             ct.AddComponent<Outline>().effectColor = new Color(0.9f, 0.9f, 0.9f);
             HorizontalLayoutGroup ctHlg = ct.AddComponent<HorizontalLayoutGroup>();
-            ctHlg.spacing = 7; ctHlg.padding = new RectOffset(12, 12, 3, 3); ctHlg.childAlignment = TextAnchor.MiddleCenter;
+            ctHlg.spacing = 3; ctHlg.padding = new RectOffset(12, 12, 3, 3); ctHlg.childAlignment = TextAnchor.MiddleCenter;
+            ctHlg.childForceExpandWidth = false;
 
             Button cropBtn = CreateToolbarIconButton(ct, "EditIcons/p_edit_crop", "Crop");
             cropBtn.onClick.AddListener(() => controller.ToggleCropTool());
 
-            string[] tools = { "Eraser", "Opacity", "Image Cutting", "UpScaler", "AI Remover", "Cutout", "Outline" };
+            Button eraserBtn = CreateToolbarIconButton(ct, "EditIcons/e_edit_eraser", "Eraser");
+            eraserBtn.onClick.AddListener(() => controller.ToggleEraserTool());
+
+            // Separator between icon tools and text tools
+            GameObject sep = UIFactory.CreateObject("Separator", ct);
+            sep.GetComponent<RectTransform>().sizeDelta = new Vector2(1, 20);
+            sep.AddComponent<Image>().color = new Color(0.82f, 0.82f, 0.82f);
+            sep.AddComponent<LayoutElement>().minWidth = 1;
+
+            string[] tools = { "Opacity", "Image Cutting", "UpScaler", "AI Remover", "Cutout", "Outline" };
             foreach (var tool in tools)
                 UIFactory.CreateButton(tool, ct, Vector2.zero, new Vector2(0, 30), Color.white, Color.black).AddComponent<LayoutElement>().flexibleWidth = 1;
 
@@ -222,6 +232,146 @@ namespace PocoRender.UI.Modules
             cropPanel.SetActive(false);
             cropPanel.transform.SetAsLastSibling();
             controller.cropOptionsPanel = cropPanel;
+
+            CreateEraserOptionsPanel(workspace, controller, cardSprite);
+        }
+
+        private static void CreateEraserOptionsPanel(GameObject workspace, CanvasController controller, Sprite cardSprite)
+        {
+            GameObject eraserPanel = UIFactory.CreateObject("EraserOptionsPanel", workspace);
+            RectTransform epRect = eraserPanel.GetComponent<RectTransform>();
+            epRect.anchorMin = new Vector2(0.5f, 1f); epRect.anchorMax = new Vector2(0.5f, 1f); epRect.pivot = new Vector2(0.5f, 1f);
+            epRect.sizeDelta = new Vector2(280, 78); epRect.anchoredPosition = new Vector2(0, -42);
+            Image epBg = eraserPanel.AddComponent<Image>();
+            epBg.color = Color.white;
+            if (cardSprite != null) { epBg.sprite = cardSprite; epBg.type = Image.Type.Sliced; }
+            eraserPanel.AddComponent<Outline>().effectColor = new Color(0.9f, 0.9f, 0.9f);
+
+            VerticalLayoutGroup epVlg = eraserPanel.AddComponent<VerticalLayoutGroup>();
+            epVlg.spacing = 4;
+            epVlg.padding = new RectOffset(12, 12, 8, 6);
+            epVlg.childAlignment = TextAnchor.MiddleCenter;
+            epVlg.childControlWidth = true;
+            epVlg.childControlHeight = false;
+            epVlg.childForceExpandWidth = true;
+            epVlg.childForceExpandHeight = false;
+
+            // --- Slider row ---
+            GameObject sliderRow = UIFactory.CreateObject("SliderRow", eraserPanel);
+            sliderRow.GetComponent<RectTransform>().sizeDelta = new Vector2(0, 28);
+            HorizontalLayoutGroup srHlg = sliderRow.AddComponent<HorizontalLayoutGroup>();
+            srHlg.spacing = 6; srHlg.childAlignment = TextAnchor.MiddleCenter;
+            srHlg.childControlWidth = false; srHlg.childControlHeight = false;
+            srHlg.childForceExpandWidth = false; srHlg.childForceExpandHeight = false;
+
+            // "Size" label
+            GameObject labelObj = UIFactory.CreateText("Size", sliderRow, 11, new Color(0.3f, 0.3f, 0.3f), Vector2.zero, new Vector2(30, 20));
+            labelObj.GetComponent<Text>().alignment = TextAnchor.MiddleRight;
+
+            // Slider
+            GameObject sliderObj = CreateEraserSlider(sliderRow);
+
+            // Value text
+            GameObject valObj = UIFactory.CreateText("20", sliderRow, 11, new Color(0.2f, 0.2f, 0.2f), Vector2.zero, new Vector2(30, 20));
+            Text valText = valObj.GetComponent<Text>();
+            valText.alignment = TextAnchor.MiddleCenter;
+
+            Slider slider = sliderObj.GetComponent<Slider>();
+            slider.onValueChanged.AddListener((val) =>
+            {
+                int size = Mathf.RoundToInt(val);
+                valText.text = size.ToString();
+                controller.SetEraserBrushSize(size);
+            });
+            slider.value = 20f;
+
+            // --- Button row ---
+            GameObject btnRow = UIFactory.CreateObject("ButtonRow", eraserPanel);
+            btnRow.GetComponent<RectTransform>().sizeDelta = new Vector2(0, 28);
+            HorizontalLayoutGroup brHlg = btnRow.AddComponent<HorizontalLayoutGroup>();
+            brHlg.spacing = 8; brHlg.childAlignment = TextAnchor.MiddleCenter;
+            brHlg.childControlWidth = false; brHlg.childControlHeight = false;
+            brHlg.childForceExpandWidth = false; brHlg.childForceExpandHeight = false;
+
+            GameObject spacer = UIFactory.CreateObject("Spacer", btnRow);
+            spacer.GetComponent<RectTransform>().sizeDelta = new Vector2(0, 0);
+            spacer.AddComponent<LayoutElement>().flexibleWidth = 1;
+
+            var exitBtn = UIFactory.CreateButton("Exit", btnRow, Vector2.zero, new Vector2(56, 26), Color.white, Color.black);
+            exitBtn.GetComponent<Button>().onClick.AddListener(() => controller.ExitEraserTool());
+            exitBtn.GetComponentInChildren<Text>().fontSize = 10;
+
+            GameObject spacer2 = UIFactory.CreateObject("Spacer2", btnRow);
+            spacer2.GetComponent<RectTransform>().sizeDelta = new Vector2(0, 0);
+            spacer2.AddComponent<LayoutElement>().flexibleWidth = 1;
+
+            eraserPanel.SetActive(false);
+            eraserPanel.transform.SetAsLastSibling();
+            controller.eraserOptionsPanel = eraserPanel;
+        }
+
+        private static GameObject CreateEraserSlider(GameObject parent)
+        {
+            GameObject sliderObj = UIFactory.CreateObject("BrushSizeSlider", parent);
+            sliderObj.GetComponent<RectTransform>().sizeDelta = new Vector2(180, 20);
+
+            // Background track (thin gray bar)
+            GameObject bgTrack = UIFactory.CreateObject("Background", sliderObj);
+            RectTransform bgRt = bgTrack.GetComponent<RectTransform>();
+            bgRt.anchorMin = new Vector2(0, 0.35f); bgRt.anchorMax = new Vector2(1, 0.65f);
+            bgRt.sizeDelta = Vector2.zero; bgRt.anchoredPosition = Vector2.zero;
+            Image bgImg = bgTrack.AddComponent<Image>();
+            bgImg.color = new Color(0.82f, 0.82f, 0.82f);
+            Sprite trackSprite = UIFactory.CreateRoundedRectSprite(64, 16, 8);
+            if (trackSprite != null) { bgImg.sprite = trackSprite; bgImg.type = Image.Type.Sliced; }
+
+            // Fill area (green)
+            GameObject fillArea = UIFactory.CreateObject("Fill Area", sliderObj);
+            RectTransform faRt = fillArea.GetComponent<RectTransform>();
+            faRt.anchorMin = new Vector2(0, 0.35f); faRt.anchorMax = new Vector2(1, 0.65f);
+            faRt.offsetMin = Vector2.zero; faRt.offsetMax = Vector2.zero;
+
+            GameObject fill = UIFactory.CreateObject("Fill", fillArea);
+            RectTransform fillRt = fill.GetComponent<RectTransform>();
+            fillRt.anchorMin = Vector2.zero; fillRt.anchorMax = new Vector2(0, 1);
+            fillRt.sizeDelta = Vector2.zero;
+            Image fillImg = fill.AddComponent<Image>();
+            fillImg.color = new Color(0.31f, 0.86f, 0.45f);
+            if (trackSprite != null) { fillImg.sprite = trackSprite; fillImg.type = Image.Type.Sliced; }
+
+            // Handle slide area
+            GameObject handleArea = UIFactory.CreateObject("Handle Slide Area", sliderObj);
+            RectTransform haRt = handleArea.GetComponent<RectTransform>();
+            haRt.anchorMin = Vector2.zero; haRt.anchorMax = Vector2.one;
+            haRt.offsetMin = new Vector2(10, 0); haRt.offsetMax = new Vector2(-10, 0);
+
+            GameObject handle = UIFactory.CreateObject("Handle", handleArea);
+            RectTransform hRt = handle.GetComponent<RectTransform>();
+            hRt.sizeDelta = new Vector2(20, 20);
+            Image handleImg = handle.AddComponent<Image>();
+            Sprite brushSpr = Resources.Load<Sprite>("EditIcons/p_brush_press");
+            if (brushSpr != null)
+            {
+                handleImg.sprite = brushSpr;
+                handleImg.type = Image.Type.Simple;
+                handleImg.preserveAspect = true;
+                handleImg.color = Color.white;
+            }
+            else
+            {
+                handleImg.color = new Color(0.25f, 0.25f, 0.25f);
+            }
+
+            Slider slider = sliderObj.AddComponent<Slider>();
+            slider.fillRect = fillRt;
+            slider.handleRect = hRt;
+            slider.targetGraphic = handleImg;
+            slider.minValue = 5;
+            slider.maxValue = 100;
+            slider.wholeNumbers = true;
+            slider.value = 20;
+
+            return sliderObj;
         }
 
         private static Button CreateToolbarIconButton(GameObject parent, string iconPath, string fallbackText)

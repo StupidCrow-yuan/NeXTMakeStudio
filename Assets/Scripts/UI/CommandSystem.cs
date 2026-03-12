@@ -241,6 +241,42 @@ namespace PocoRender.UI
             onComplete?.Invoke();
         }
     }
+
+    public class EraseCommand : ICommand
+    {
+        private Image targetImage;
+        private Sprite oldSprite;
+        private Sprite newSprite;
+        private System.Action onComplete;
+
+        public EraseCommand(Image targetImage,
+                            Sprite oldSprite, Sprite newSprite,
+                            System.Action onComplete = null)
+        {
+            this.targetImage = targetImage;
+            this.oldSprite = oldSprite;
+            this.newSprite = newSprite;
+            this.onComplete = onComplete;
+        }
+
+        public void Execute()
+        {
+            if (targetImage == null) return;
+            targetImage.sprite = newSprite;
+            targetImage.preserveAspect = true;
+            targetImage.color = Color.white;
+            onComplete?.Invoke();
+        }
+
+        public void Undo()
+        {
+            if (targetImage == null) return;
+            targetImage.sprite = oldSprite;
+            targetImage.preserveAspect = true;
+            targetImage.color = Color.white;
+            onComplete?.Invoke();
+        }
+    }
 }
 
 
