@@ -67,6 +67,7 @@ namespace PocoRender.UI.Modules
 
             System.Action<string> ShowSidePanel = (type) => {
                 titleTxt.GetComponent<Text>().text = type;
+                titleTxt.SetActive(type != "Upload");
                 foreach(Transform child in contentRoot.transform) Object.Destroy(child.gameObject);
                 searchBar.SetActive(type == "Templates" || type == "Elements");
                 
@@ -141,7 +142,7 @@ namespace PocoRender.UI.Modules
                             lcRt.pivot = new Vector2(0.5f, 1);
                             lcRt.sizeDelta = new Vector2(0, 0);
                             GridLayoutGroup glg = listContent.AddComponent<GridLayoutGroup>();
-                            glg.cellSize = new Vector2(80, 80);
+                            glg.cellSize = new Vector2(100, 100);
                             glg.spacing = new Vector2(6, 6);
                             glg.padding = new RectOffset(4, 4, 4, 4);
                             glg.constraint = GridLayoutGroup.Constraint.FixedColumnCount;
@@ -152,6 +153,70 @@ namespace PocoRender.UI.Modules
                             sr.viewport = vp.GetComponent<RectTransform>();
                             sr.content = lcRt;
                             controller.uploadListContainer = listContent;
+
+                            // Selection action bar (bottom, hidden by default)
+                            GameObject selBar = UIFactory.CreateObject("SelectionBar", uploadWrap);
+                            selBar.AddComponent<Image>().color = new Color(0.96f, 0.96f, 0.96f, 1f);
+                            LayoutElement selBarLe = selBar.AddComponent<LayoutElement>();
+                            selBarLe.minHeight = 40; selBarLe.flexibleHeight = 0;
+                            HorizontalLayoutGroup selHlg = selBar.AddComponent<HorizontalLayoutGroup>();
+                            selHlg.spacing = 8; selHlg.padding = new RectOffset(10, 10, 5, 5);
+                            selHlg.childAlignment = TextAnchor.MiddleLeft;
+                            selHlg.childControlWidth = false; selHlg.childControlHeight = false;
+                            selHlg.childForceExpandWidth = false;
+
+                            // Checkbox icon in bar (click to toggle select all / deselect all)
+                            Sprite barCheckSpr = Resources.Load<Sprite>("EditIcons/p_check");
+                            GameObject barChkBtn = UIFactory.CreateObject("BarCheckBtn", selBar);
+                            barChkBtn.GetComponent<RectTransform>().sizeDelta = new Vector2(22, 22);
+                            Image barChkImg = barChkBtn.AddComponent<Image>();
+                            if (barCheckSpr != null) { barChkImg.sprite = barCheckSpr; barChkImg.preserveAspect = true; }
+                            barChkImg.color = new Color(0.65f, 0.65f, 0.65f);
+                            Button barChkBtnComp = barChkBtn.AddComponent<Button>();
+                            barChkBtnComp.targetGraphic = barChkImg;
+                            barChkBtnComp.onClick.AddListener(() => controller.SelectAllUploads());
+                            controller.uploadBarCheckImage = barChkImg;
+
+                            // Selected count text
+                            GameObject selCountObj = UIFactory.CreateText("(0) Selected", selBar, 12, Color.black, Vector2.zero, new Vector2(90, 28), TextAnchor.MiddleLeft);
+                            controller.uploadSelectionCountText = selCountObj.GetComponent<Text>();
+
+                            // Flexible spacer
+                            GameObject spacer = UIFactory.CreateObject("Spacer", selBar);
+                            spacer.GetComponent<RectTransform>().sizeDelta = new Vector2(0, 1);
+                            spacer.AddComponent<LayoutElement>().flexibleWidth = 1;
+
+                            // Delete button (p_delete.png icon, tooltip on hover)
+                            Sprite delIconSpr = Resources.Load<Sprite>("EditIcons/p_delete");
+                            GameObject delBtn = UIFactory.CreateObject("DeleteBtn", selBar);
+                            delBtn.GetComponent<RectTransform>().sizeDelta = new Vector2(28, 28);
+                            Image delBtnImg = delBtn.AddComponent<Image>();
+                            if (delIconSpr != null) { delBtnImg.sprite = delIconSpr; delBtnImg.preserveAspect = true; delBtnImg.color = Color.white; }
+                            else { delBtnImg.color = new Color(0.85f, 0.2f, 0.2f); }
+                            Button delBtnComp = delBtn.AddComponent<Button>();
+                            delBtnComp.targetGraphic = delBtnImg;
+                            delBtnComp.onClick.AddListener(() => controller.DeleteSelectedUploads());
+                            delBtn.AddComponent<UITooltip>().text = "Delete";
+
+                            // Spacer between Delete and Cancel
+                            GameObject btnSpacer = UIFactory.CreateObject("BtnSpacer", selBar);
+                            btnSpacer.GetComponent<RectTransform>().sizeDelta = new Vector2(8, 1);
+
+                            // Cancel button (p_cancle.png icon only, tooltip on hover)
+                            Sprite cancelIconSpr = Resources.Load<Sprite>("EditIcons/p_cancle");
+                            GameObject cancelSelBtn = UIFactory.CreateObject("CancelBtn", selBar);
+                            cancelSelBtn.GetComponent<RectTransform>().sizeDelta = new Vector2(28, 28);
+                            Image cancelBtnImg = cancelSelBtn.AddComponent<Image>();
+                            if (cancelIconSpr != null) { cancelBtnImg.sprite = cancelIconSpr; cancelBtnImg.preserveAspect = true; cancelBtnImg.color = new Color(0.4f, 0.4f, 0.4f); }
+                            else { cancelBtnImg.color = new Color(0.92f, 0.92f, 0.92f); }
+                            Button cancelBtnComp = cancelSelBtn.AddComponent<Button>();
+                            cancelBtnComp.targetGraphic = cancelBtnImg;
+                            cancelBtnComp.onClick.AddListener(() => controller.CancelUploadSelection());
+                            cancelSelBtn.AddComponent<UITooltip>().text = "Cancel";
+
+                            controller.uploadSelectionBar = selBar;
+                            selBar.SetActive(false);
+
                             controller.LoadUploadedImages();
                         }
                         break;
@@ -213,9 +278,10 @@ namespace PocoRender.UI.Modules
                 else if (!string.IsNullOrEmpty(resName))
                     iconSprite = Resources.Load<Sprite>("Icons/" + resName);
                 if (iconSprite != null) {
-                    float iconSize = (t == "Upload") ? 7f : 22f;
+                    float iconSize = (t == "Upload") ? 36f : 22f;
                     GameObject iconObj = UIFactory.CreateObject("Icon", btnObj);
-                    Image iconImg = iconObj.AddComponent<Image>(); iconImg.sprite = iconSprite; iconImg.color = new Color(0.4f, 0.4f, 0.4f);
+                    iconObj.GetComponent<RectTransform>().sizeDelta = new Vector2(iconSize, iconSize);
+                    Image iconImg = iconObj.AddComponent<Image>(); iconImg.sprite = iconSprite; iconImg.color = new Color(0.4f, 0.4f, 0.4f); iconImg.preserveAspect = true;
                     var iconLe = iconObj.AddComponent<LayoutElement>(); iconLe.minWidth = iconSize; iconLe.minHeight = iconSize; iconLe.preferredWidth = iconSize; iconLe.preferredHeight = iconSize;
                 } else if (!string.IsNullOrEmpty(iconChar)) {
                     GameObject iconObj = UIFactory.CreateText(iconChar, btnObj, 16, new Color(0.35f, 0.35f, 0.35f), Vector2.zero, new Vector2(0, 18), TextAnchor.MiddleCenter);

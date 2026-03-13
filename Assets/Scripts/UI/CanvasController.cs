@@ -100,7 +100,11 @@ namespace PocoRender.UI
         
         [Header("Upload Panel")]
         public GameObject uploadListContainer;
+        public GameObject uploadSelectionBar;
+        public Text uploadSelectionCountText;
+        public Image uploadBarCheckImage;
         private List<string> uploadedImagePaths = new List<string>();
+        private HashSet<string> uploadSelectedPaths = new HashSet<string>();
         private static string UploadCachePath => Path.Combine(Application.persistentDataPath, "UploadCache");
         private static string UploadManifestPath => Path.Combine(Application.persistentDataPath, "UploadCache", "manifest.txt");
         
@@ -1636,6 +1640,9 @@ namespace PocoRender.UI
             foreach (Transform child in uploadListContainer.transform)
                 Destroy(child.gameObject);
 
+            uploadSelectedPaths.Clear();
+            UpdateUploadSelectionBar();
+
             if (uploadedImagePaths.Count == 0)
             {
                 UIFactory.CreateText("No uploads yet.", uploadListContainer, 11, Color.gray, Vector2.zero, new Vector2(0, 22), TextAnchor.MiddleLeft, FontStyle.Normal).name = "UploadEmptyHint";
@@ -1659,7 +1666,7 @@ namespace PocoRender.UI
             Texture2D tex = new Texture2D(2, 2, TextureFormat.RGBA32, false, false);
             if (!tex.LoadImage(data)) { Destroy(tex); return; }
 
-            float thumbSize = 80f;
+            float thumbSize = 100f;
             GameObject item = UIFactory.CreateObject("UploadThumb", uploadListContainer);
             RectTransform itemRt = item.GetComponent<RectTransform>();
             itemRt.sizeDelta = new Vector2(thumbSize, thumbSize);
@@ -1671,8 +1678,60 @@ namespace PocoRender.UI
             thumbImg.preserveAspect = true;
             thumbImg.color = Color.white;
 
-            // Click to add to canvas
             string path = cachedPath;
+
+            // Checkbox (top-left, hidden until hover, clickable to toggle selection)
+            GameObject checkObj = UIFactory.CreateObject("Check", item);
+            RectTransform checkRt = checkObj.GetComponent<RectTransform>();
+            checkRt.anchorMin = new Vector2(0, 1); checkRt.anchorMax = new Vector2(0, 1);
+            checkRt.pivot = new Vector2(0, 1);
+            checkRt.sizeDelta = new Vector2(24, 24);
+            checkRt.anchoredPosition = new Vector2(2, -2);
+            Image checkBg = checkObj.AddComponent<Image>();
+            checkBg.color = new Color(1, 1, 1, 0.85f);
+
+            GameObject checkMark = UIFactory.CreateObject("CheckIcon", checkObj);
+            RectTransform cmRt = checkMark.GetComponent<RectTransform>();
+            cmRt.anchorMin = new Vector2(0.1f, 0.1f); cmRt.anchorMax = new Vector2(0.9f, 0.9f);
+            cmRt.offsetMin = Vector2.zero; cmRt.offsetMax = Vector2.zero;
+            Image cmImg = checkMark.AddComponent<Image>();
+            Sprite checkSpr = Resources.Load<Sprite>("EditIcons/p_check");
+            if (checkSpr != null) { cmImg.sprite = checkSpr; cmImg.preserveAspect = true; }
+            cmImg.color = Color.white;
+            checkMark.SetActive(false);
+
+            Button checkBtn = checkObj.AddComponent<Button>();
+            checkBtn.targetGraphic = checkBg;
+            checkBtn.onClick.AddListener(() => ToggleUploadSelection(path, checkObj));
+            checkObj.SetActive(false);
+
+            // Menu dots (top-right, hidden until hover)
+            GameObject menuObj = UIFactory.CreateObject("Menu", item);
+            RectTransform menuRt = menuObj.GetComponent<RectTransform>();
+            menuRt.anchorMin = new Vector2(1, 1); menuRt.anchorMax = new Vector2(1, 1);
+            menuRt.pivot = new Vector2(1, 1);
+            menuRt.sizeDelta = new Vector2(24, 24);
+            menuRt.anchoredPosition = new Vector2(-2, -2);
+            Image menuBg = menuObj.AddComponent<Image>();
+            menuBg.color = new Color(1, 1, 1, 0.85f);
+            Sprite dotsSpr = Resources.Load<Sprite>("EditIcons/p_dot-three-v-lined");
+            if (dotsSpr != null)
+            {
+                GameObject dotsIcon = UIFactory.CreateObject("DotsIcon", menuObj);
+                RectTransform diRt = dotsIcon.GetComponent<RectTransform>();
+                diRt.anchorMin = new Vector2(0.15f, 0.15f); diRt.anchorMax = new Vector2(0.85f, 0.85f);
+                diRt.offsetMin = Vector2.zero; diRt.offsetMax = Vector2.zero;
+                Image diImg = dotsIcon.AddComponent<Image>();
+                diImg.sprite = dotsSpr; diImg.preserveAspect = true; diImg.color = new Color(0.3f, 0.3f, 0.3f);
+            }
+            menuObj.SetActive(false);
+
+            Button menuBtn = menuObj.AddComponent<Button>();
+            menuBtn.targetGraphic = menuBg;
+            menuBtn.onClick.AddListener(() => ToggleUploadSelection(path, checkObj));
+
+            // Invisible button covering entire thumbnail for adding to canvas
+            // Must be behind checkbox and menu so those intercept clicks first
             Button clickBtn = item.AddComponent<Button>();
             clickBtn.targetGraphic = thumbImg;
             clickBtn.onClick.AddListener(() =>
@@ -1682,164 +1741,113 @@ namespace PocoRender.UI
                     AddTextureToCanvas(path, canvasTex);
             });
 
-            // Checkbox (top-left, hidden until hover)
-            GameObject checkObj = UIFactory.CreateObject("Check", item);
-            RectTransform checkRt = checkObj.GetComponent<RectTransform>();
-            checkRt.anchorMin = new Vector2(0, 1); checkRt.anchorMax = new Vector2(0, 1);
-            checkRt.pivot = new Vector2(0, 1);
-            checkRt.sizeDelta = new Vector2(20, 20);
-            checkRt.anchoredPosition = new Vector2(4, -4);
-            Image checkBg = checkObj.AddComponent<Image>();
-            checkBg.color = new Color(1, 1, 1, 0.85f);
-            GameObject checkMark = UIFactory.CreateObject("CheckIcon", checkObj);
-            RectTransform cmRt = checkMark.GetComponent<RectTransform>();
-            cmRt.anchorMin = new Vector2(0.15f, 0.15f); cmRt.anchorMax = new Vector2(0.85f, 0.85f);
-            cmRt.offsetMin = Vector2.zero; cmRt.offsetMax = Vector2.zero;
-            Image cmImg = checkMark.AddComponent<Image>();
-            Sprite checkSpr = Resources.Load<Sprite>("EditIcons/p_check");
-            if (checkSpr != null) { cmImg.sprite = checkSpr; cmImg.preserveAspect = true; }
-            cmImg.color = Color.white;
-            checkMark.SetActive(false);
-            checkObj.SetActive(false);
-
-            // Menu dots (top-right, hidden until hover)
-            GameObject menuObj = UIFactory.CreateObject("Menu", item);
-            RectTransform menuRt = menuObj.GetComponent<RectTransform>();
-            menuRt.anchorMin = new Vector2(1, 1); menuRt.anchorMax = new Vector2(1, 1);
-            menuRt.pivot = new Vector2(1, 1);
-            menuRt.sizeDelta = new Vector2(22, 22);
-            menuRt.anchoredPosition = new Vector2(-2, -2);
-            Image menuBg = menuObj.AddComponent<Image>();
-            menuBg.color = new Color(1, 1, 1, 0.85f);
-            Sprite dotsSpr = Resources.Load<Sprite>("EditIcons/p_dot-three-v-lined");
-            if (dotsSpr != null)
-            {
-                GameObject dotsIcon = UIFactory.CreateObject("DotsIcon", menuObj);
-                RectTransform diRt = dotsIcon.GetComponent<RectTransform>();
-                diRt.anchorMin = new Vector2(0.2f, 0.2f); diRt.anchorMax = new Vector2(0.8f, 0.8f);
-                diRt.offsetMin = Vector2.zero; diRt.offsetMax = Vector2.zero;
-                Image diImg = dotsIcon.AddComponent<Image>();
-                diImg.sprite = dotsSpr; diImg.preserveAspect = true; diImg.color = new Color(0.3f, 0.3f, 0.3f);
-            }
-            else
-            {
-                Text menuDots = UIFactory.CreateText("\u22EE", menuObj, 14, Color.black, Vector2.zero, Vector2.zero, TextAnchor.MiddleCenter).GetComponent<Text>();
-                UIFactory.Stretch(menuDots.GetComponent<RectTransform>());
-            }
-            menuObj.SetActive(false);
-
-            Button menuBtn = menuObj.AddComponent<Button>();
-            menuBtn.targetGraphic = menuBg;
-            menuBtn.onClick.AddListener(() => ShowUploadItemMenu(item, path, checkObj));
-
             // Hover handler
             UploadThumbnailHover hover = item.AddComponent<UploadThumbnailHover>();
             hover.checkObj = checkObj;
             hover.menuObj = menuObj;
         }
 
-        private void ShowUploadItemMenu(GameObject anchor, string cachedPath, GameObject checkObj)
+        private void ToggleUploadSelection(string path, GameObject checkObj)
         {
-            if (activePopup != null) Destroy(activePopup);
-
-            GameObject overlay = UIFactory.CreateObject("MenuOverlay", editorArea != null ? editorArea : gameObject);
-            UIFactory.Stretch(overlay.GetComponent<RectTransform>());
-            overlay.AddComponent<Image>().color = new Color(0, 0, 0, 0.01f);
-            overlay.AddComponent<Button>().onClick.AddListener(() => Destroy(overlay));
-            overlay.transform.SetAsLastSibling();
-
-            GameObject menu = UIFactory.CreateObject("PopupMenu", overlay);
-            RectTransform mRt = menu.GetComponent<RectTransform>();
-            mRt.sizeDelta = new Vector2(100, 60);
-
-            Vector3[] corners = new Vector3[4];
-            anchor.GetComponent<RectTransform>().GetWorldCorners(corners);
-            mRt.position = corners[1]; // top-right area
-
-            Image menuBg = menu.AddComponent<Image>();
-            menuBg.color = Color.white;
-            menu.AddComponent<UnityEngine.UI.Outline>().effectColor = new Color(0.85f, 0.85f, 0.85f);
-
-            VerticalLayoutGroup mvlg = menu.AddComponent<VerticalLayoutGroup>();
-            mvlg.padding = new RectOffset(4, 4, 4, 4);
-            mvlg.spacing = 2;
-            mvlg.childControlWidth = true; mvlg.childControlHeight = true;
-            mvlg.childForceExpandWidth = true;
-
-            // Select option
-            GameObject selectBtn = UIFactory.CreateButton("Select", menu, Vector2.zero, new Vector2(0, 24), Color.white, Color.black);
-            selectBtn.GetComponent<Button>().onClick.AddListener(() =>
+            bool wasSelected = uploadSelectedPaths.Contains(path);
+            if (wasSelected)
             {
+                uploadSelectedPaths.Remove(path);
                 if (checkObj != null)
                 {
-                    Image chk = checkObj.GetComponent<Image>();
-                    bool selected = chk.color.g > 0.5f && chk.color.r < 0.5f;
-                    chk.color = selected ? new Color(1, 1, 1, 0.85f) : new Color(0.3f, 0.85f, 0.4f, 1f);
-                    Transform cmT = checkObj.transform.Find("CheckIcon");
-                    if (cmT != null) cmT.gameObject.SetActive(!selected);
+                    checkObj.GetComponent<Image>().color = new Color(1, 1, 1, 0.85f);
+                    Transform cm = checkObj.transform.Find("CheckIcon");
+                    if (cm != null) cm.gameObject.SetActive(false);
+                }
+            }
+            else
+            {
+                uploadSelectedPaths.Add(path);
+                if (checkObj != null)
+                {
+                    checkObj.GetComponent<Image>().color = new Color(0.55f, 0.88f, 0.58f, 0.9f);
+                    Transform cm = checkObj.transform.Find("CheckIcon");
+                    if (cm != null) cm.gameObject.SetActive(true);
                     checkObj.SetActive(true);
                 }
-                Destroy(overlay);
-            });
-            selectBtn.GetComponentInChildren<Text>().fontSize = 12;
-
-            // Delete option
-            GameObject deleteBtn = UIFactory.CreateButton("Delete", menu, Vector2.zero, new Vector2(0, 24), Color.white, new Color(0.8f, 0.2f, 0.2f));
-            deleteBtn.GetComponent<Button>().onClick.AddListener(() =>
-            {
-                Destroy(overlay);
-                ShowDeleteConfirmation(cachedPath);
-            });
-            deleteBtn.GetComponentInChildren<Text>().fontSize = 12;
-
-            activePopup = overlay;
+            }
+            UpdateUploadSelectionBar();
         }
 
-        private void ShowDeleteConfirmation(string cachedPath)
+        private void UpdateUploadSelectionBar()
         {
-            if (activePopup != null) Destroy(activePopup);
-
-            GameObject overlay = UIFactory.CreateObject("DeleteConfirm", editorArea != null ? editorArea : gameObject);
-            UIFactory.Stretch(overlay.GetComponent<RectTransform>());
-            overlay.AddComponent<Image>().color = new Color(0, 0, 0, 0.35f);
-            overlay.transform.SetAsLastSibling();
-
-            GameObject panel = UIFactory.CreateObject("Panel", overlay);
-            panel.GetComponent<RectTransform>().sizeDelta = new Vector2(300, 120);
-            panel.AddComponent<Image>().color = Color.white;
-            panel.AddComponent<UnityEngine.UI.Outline>().effectColor = new Color(0.85f, 0.85f, 0.85f);
-
-            VerticalLayoutGroup pvlg = panel.AddComponent<VerticalLayoutGroup>();
-            pvlg.padding = new RectOffset(20, 20, 16, 16); pvlg.spacing = 12;
-            pvlg.childAlignment = TextAnchor.MiddleCenter;
-            pvlg.childControlWidth = true; pvlg.childControlHeight = true;
-            pvlg.childForceExpandHeight = false;
-
-            UIFactory.CreateText("Delete this image?", panel, 14, Color.black, Vector2.zero, Vector2.zero, TextAnchor.MiddleCenter);
-
-            GameObject btnRow = UIFactory.CreateObject("BtnRow", panel);
-            HorizontalLayoutGroup bhlg = btnRow.AddComponent<HorizontalLayoutGroup>();
-            bhlg.spacing = 12; bhlg.childAlignment = TextAnchor.MiddleCenter;
-            bhlg.childControlWidth = false; bhlg.childControlHeight = false;
-            btnRow.AddComponent<LayoutElement>().minHeight = 32;
-
-            GameObject cancelBtn = UIFactory.CreateButton("Cancel", btnRow, Vector2.zero, new Vector2(80, 30), new Color(0.95f, 0.95f, 0.95f), Color.black);
-            cancelBtn.GetComponent<Button>().onClick.AddListener(() => Destroy(overlay));
-            cancelBtn.GetComponentInChildren<Text>().fontSize = 12;
-
-            GameObject confirmBtn = UIFactory.CreateButton("Delete", btnRow, Vector2.zero, new Vector2(80, 30), new Color(0.85f, 0.2f, 0.2f), Color.white);
-            confirmBtn.GetComponent<Button>().onClick.AddListener(() =>
-            {
-                uploadedImagePaths.Remove(cachedPath);
-                SaveUploadManifest();
-                try { if (File.Exists(cachedPath)) File.Delete(cachedPath); } catch { }
-                RefreshUploadGrid();
-                Destroy(overlay);
-            });
-            confirmBtn.GetComponentInChildren<Text>().fontSize = 12;
-
-            activePopup = overlay;
+            if (uploadSelectionBar == null) return;
+            int count = uploadSelectedPaths.Count;
+            uploadSelectionBar.SetActive(count > 0);
+            if (uploadSelectionCountText != null)
+                uploadSelectionCountText.text = $"({count}) Selected";
+            bool allSelected = count > 0 && count >= uploadedImagePaths.Count;
+            if (uploadBarCheckImage != null)
+                uploadBarCheckImage.color = allSelected ? new Color(0.55f, 0.88f, 0.58f) : new Color(0.65f, 0.65f, 0.65f);
         }
+
+        public void DeleteSelectedUploads()
+        {
+            var toDelete = new List<string>(uploadSelectedPaths);
+            foreach (string p in toDelete)
+            {
+                uploadedImagePaths.Remove(p);
+                try { if (File.Exists(p)) File.Delete(p); } catch { }
+            }
+            uploadSelectedPaths.Clear();
+            SaveUploadManifest();
+            RefreshUploadGrid();
+        }
+
+        public void CancelUploadSelection()
+        {
+            uploadSelectedPaths.Clear();
+            RefreshUploadGrid();
+        }
+
+        public void SelectAllUploads()
+        {
+            bool allSelected = uploadSelectedPaths.Count >= uploadedImagePaths.Count && uploadedImagePaths.Count > 0;
+            if (allSelected)
+            {
+                uploadSelectedPaths.Clear();
+                SetAllThumbnailCheckState(false);
+            }
+            else
+            {
+                uploadSelectedPaths.Clear();
+                foreach (string p in uploadedImagePaths)
+                    uploadSelectedPaths.Add(p);
+                SetAllThumbnailCheckState(true);
+            }
+            UpdateUploadSelectionBar();
+        }
+
+        private void SetAllThumbnailCheckState(bool selected)
+        {
+            if (uploadListContainer == null) return;
+            foreach (Transform child in uploadListContainer.transform)
+            {
+                Transform chk = child.Find("Check");
+                if (chk == null) continue;
+                Image chkImg = chk.GetComponent<Image>();
+                Transform cm = chk.Find("CheckIcon");
+                if (selected)
+                {
+                    chk.gameObject.SetActive(true);
+                    if (chkImg != null) chkImg.color = new Color(0.55f, 0.88f, 0.58f, 0.9f);
+                    if (cm != null) cm.gameObject.SetActive(true);
+                }
+                else
+                {
+                    if (chkImg != null) chkImg.color = new Color(1, 1, 1, 0.85f);
+                    if (cm != null) cm.gameObject.SetActive(false);
+                    chk.gameObject.SetActive(false);
+                }
+            }
+        }
+
+        
 
         private void AddUploadedListItem(string originalPath, Texture2D texture)
         {

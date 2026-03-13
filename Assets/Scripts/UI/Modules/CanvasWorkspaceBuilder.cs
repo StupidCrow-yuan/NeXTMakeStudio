@@ -187,12 +187,19 @@ namespace PocoRender.UI.Modules
             else { zSep2Img.color = new Color(0.82f, 0.82f, 0.82f); }
             LayoutElement zSep2Le = zSep2.AddComponent<LayoutElement>(); zSep2Le.minWidth = 8; zSep2Le.preferredWidth = 8;
 
-            Button hb = UIFactory.CreateButton("\u270B", ctrlBar, Vector2.zero, new Vector2(26, 26), Color.white, Color.black).GetComponent<Button>();
-            LayoutElement hbLe = hb.gameObject.AddComponent<LayoutElement>(); hbLe.minWidth = 26; hbLe.preferredWidth = 26; hbLe.minHeight = 26; hbLe.preferredHeight = 26;
-            hb.gameObject.AddComponent<UITooltip>().text = "Hand Tool";
+            Sprite handSpr = Resources.Load<Sprite>("EditIcons/p_hand");
+            GameObject handBtn = UIFactory.CreateObject("HandBtn", ctrlBar);
+            handBtn.GetComponent<RectTransform>().sizeDelta = new Vector2(26, 26);
+            Image handImg = handBtn.AddComponent<Image>();
+            if (handSpr != null) { handImg.sprite = handSpr; handImg.type = Image.Type.Simple; handImg.preserveAspect = true; handImg.color = Color.white; }
+            else { handImg.color = Color.white; }
+            Button hb = handBtn.AddComponent<Button>();
+            hb.targetGraphic = handImg;
+            LayoutElement hbLe = handBtn.AddComponent<LayoutElement>(); hbLe.minWidth = 26; hbLe.preferredWidth = 26; hbLe.minHeight = 26; hbLe.preferredHeight = 26;
+            handBtn.AddComponent<UITooltip>().text = "Hand Tool";
             hb.onClick.AddListener(() => {
                 controller.ToggleHandTool(!controller.IsHandToolActive());
-                hb.GetComponent<Image>().color = controller.IsHandToolActive() ? new Color(0.8f, 1f, 0.8f) : Color.white;
+                handImg.color = controller.IsHandToolActive() ? new Color(0.8f, 1f, 0.8f) : Color.white;
             });
 
             GameObject fitBtn = UIFactory.CreateButton("Fit", ctrlBar, Vector2.zero, new Vector2(32, 26), Color.white, Color.black);
