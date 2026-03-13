@@ -166,7 +166,7 @@ namespace PocoRender.UI.Modules
             GameObject ct = UIFactory.CreateObject("ContextToolbar", workspace);
             RectTransform ctRect = ct.GetComponent<RectTransform>();
             ctRect.anchorMin = new Vector2(0.5f, 1f); ctRect.anchorMax = new Vector2(0.5f, 1f); ctRect.pivot = new Vector2(0.5f, 1f);
-            ctRect.sizeDelta = new Vector2(560, 34); ctRect.anchoredPosition = new Vector2(0, -4); 
+            ctRect.sizeDelta = new Vector2(600, 34); ctRect.anchoredPosition = new Vector2(0, -4); 
             Image ctBg = ct.AddComponent<Image>();
             ctBg.color = Color.white;
             Sprite cardSprite = UIFactory.CreateRoundedRectSprite(128, 64, 10);
@@ -187,6 +187,10 @@ namespace PocoRender.UI.Modules
 
             Button splitBtn = CreateToolbarIconButton(ct, "EditIcons/p_edit_cell_split", "Image Splitting");
             splitBtn.onClick.AddListener(() => controller.ToggleSplitTool());
+
+            // Adjustment text button with icon
+            Button adjBtn = CreateToolbarIconButton(ct, "EditIcons/p_curve-adjustment", "Adjustment");
+            adjBtn.onClick.AddListener(() => controller.ToggleAdjustmentPanel());
 
             // Separator between icon tools and text tools
             GameObject sep = UIFactory.CreateObject("Separator", ct);
@@ -450,6 +454,177 @@ namespace PocoRender.UI.Modules
             splitPanel.SetActive(false);
             splitPanel.transform.SetAsLastSibling();
             controller.splitOptionsPanel = splitPanel;
+
+            CreateAdjustmentPanel(workspace, controller, cardSprite);
+        }
+
+        private static void CreateAdjustmentPanel(GameObject workspace, CanvasController controller, Sprite cardSprite)
+        {
+            GameObject panel = UIFactory.CreateObject("AdjustmentPanel", workspace);
+            RectTransform pRect = panel.GetComponent<RectTransform>();
+            UIFactory.Stretch(pRect);
+            panel.AddComponent<LayoutElement>().flexibleHeight = 1;
+
+            VerticalLayoutGroup vlg = panel.AddComponent<VerticalLayoutGroup>();
+            vlg.spacing = 4;
+            vlg.padding = new RectOffset(10, 10, 8, 8);
+            vlg.childAlignment = TextAnchor.UpperCenter;
+            vlg.childControlWidth = true;
+            vlg.childControlHeight = false;
+            vlg.childForceExpandWidth = true;
+            vlg.childForceExpandHeight = false;
+
+            // Header row
+            GameObject header = UIFactory.CreateObject("Header", panel);
+            header.GetComponent<RectTransform>().sizeDelta = new Vector2(0, 32);
+            HorizontalLayoutGroup hdrHlg = header.AddComponent<HorizontalLayoutGroup>();
+            hdrHlg.childAlignment = TextAnchor.MiddleLeft;
+            hdrHlg.childControlWidth = true; hdrHlg.childControlHeight = true;
+            hdrHlg.childForceExpandWidth = false; hdrHlg.childForceExpandHeight = false;
+
+            GameObject titleObj = UIFactory.CreateText("Adjustment", header, 16, new Color(0.15f, 0.15f, 0.15f),
+                Vector2.zero, new Vector2(0, 28), TextAnchor.MiddleLeft, FontStyle.Bold);
+            titleObj.AddComponent<LayoutElement>().flexibleWidth = 1;
+
+            // Close button
+            GameObject closeObj = UIFactory.CreateObject("CloseBtn", header);
+            LayoutElement closeLe = closeObj.AddComponent<LayoutElement>();
+            closeLe.minWidth = 22; closeLe.minHeight = 22; closeLe.preferredWidth = 22; closeLe.preferredHeight = 22;
+            Image closeImg = closeObj.AddComponent<Image>();
+            Sprite closeSprite = Resources.Load<Sprite>("EditIcons/p_close");
+            if (closeSprite != null) { closeImg.sprite = closeSprite; closeImg.preserveAspect = true; closeImg.color = Color.white; }
+            else closeImg.color = new Color(0.5f, 0.5f, 0.5f);
+            Button closeBtn = closeObj.AddComponent<Button>();
+            closeBtn.targetGraphic = closeImg;
+            closeBtn.onClick.AddListener(() => controller.CloseAdjustmentPanel());
+
+            // Slider rows
+            string[] paramNames = { "Brightness", "Contrast", "Saturation", "Hue", "Temperature", "Tint", "Highlights", "Shadows", "Sharpness" };
+            Slider[] sliders = new Slider[paramNames.Length];
+            Text[] valueTexts = new Text[paramNames.Length];
+
+            for (int i = 0; i < paramNames.Length; i++)
+            {
+                int idx = i;
+                GameObject row = UIFactory.CreateObject("Row_" + paramNames[i], panel);
+                row.GetComponent<RectTransform>().sizeDelta = new Vector2(0, 34);
+                HorizontalLayoutGroup rowHlg = row.AddComponent<HorizontalLayoutGroup>();
+                rowHlg.spacing = 4; rowHlg.childAlignment = TextAnchor.MiddleCenter;
+                rowHlg.padding = new RectOffset(2, 2, 0, 0);
+                rowHlg.childControlWidth = true; rowHlg.childControlHeight = true;
+                rowHlg.childForceExpandWidth = false; rowHlg.childForceExpandHeight = false;
+
+                GameObject labelObj = UIFactory.CreateText(paramNames[i], row, 11, new Color(0.3f, 0.3f, 0.3f),
+                    Vector2.zero, new Vector2(68, 24), TextAnchor.MiddleLeft);
+                LayoutElement labelLe = labelObj.AddComponent<LayoutElement>();
+                labelLe.minWidth = 68; labelLe.preferredWidth = 68;
+
+                GameObject sliderObj = CreateAdjustmentSlider(row);
+                LayoutElement sliderLe = sliderObj.AddComponent<LayoutElement>();
+                sliderLe.flexibleWidth = 1; sliderLe.minWidth = 60; sliderLe.minHeight = 18; sliderLe.preferredHeight = 18;
+
+                GameObject valObj = UIFactory.CreateText("0", row, 11, new Color(0.4f, 0.4f, 0.4f),
+                    Vector2.zero, new Vector2(28, 24), TextAnchor.MiddleRight);
+                LayoutElement valLe2 = valObj.AddComponent<LayoutElement>();
+                valLe2.minWidth = 28; valLe2.preferredWidth = 28;
+                Text valText = valObj.GetComponent<Text>();
+                valueTexts[idx] = valText;
+
+                Slider slider = sliderObj.GetComponent<Slider>();
+                slider.minValue = -100;
+                slider.maxValue = 100;
+                slider.wholeNumbers = true;
+                slider.value = 0;
+                sliders[idx] = slider;
+
+                slider.onValueChanged.AddListener((v) =>
+                {
+                    valText.text = Mathf.RoundToInt(v).ToString();
+                    controller.ApplyAdjustments();
+                });
+            }
+
+            controller.adjustmentSliders = sliders;
+            controller.adjustmentValueTexts = valueTexts;
+
+            // Spacer before Restore
+            GameObject restoreSpacer = UIFactory.CreateObject("RestoreSpacer", panel);
+            restoreSpacer.GetComponent<RectTransform>().sizeDelta = new Vector2(0, 8);
+
+            // Restore button
+            var restoreBtn = UIFactory.CreateButton("Restore", panel, Vector2.zero, new Vector2(0, 34), new Color(0.96f, 0.96f, 0.96f), new Color(0.25f, 0.25f, 0.25f));
+            restoreBtn.GetComponentInChildren<Text>().fontSize = 13;
+            restoreBtn.GetComponent<RectTransform>().sizeDelta = new Vector2(0, 34);
+            restoreBtn.GetComponent<Button>().onClick.AddListener(() => controller.RestoreAdjustments());
+
+            panel.SetActive(false);
+            panel.transform.SetAsLastSibling();
+            controller.adjustmentPanel = panel;
+        }
+
+        private static GameObject CreateAdjustmentSlider(GameObject parent)
+        {
+            GameObject sliderObj = UIFactory.CreateObject("AdjSlider", parent);
+            sliderObj.GetComponent<RectTransform>().sizeDelta = new Vector2(120, 20);
+
+            Sprite trackSprite = UIFactory.CreateRoundedRectSprite(64, 8, 4);
+
+            // Thin track background (3px tall, centered)
+            GameObject bgTrack = UIFactory.CreateObject("Background", sliderObj);
+            RectTransform bgRt = bgTrack.GetComponent<RectTransform>();
+            bgRt.anchorMin = new Vector2(0, 0.5f); bgRt.anchorMax = new Vector2(1, 0.5f);
+            bgRt.sizeDelta = new Vector2(0, 3); bgRt.anchoredPosition = Vector2.zero;
+            Image bgImg = bgTrack.AddComponent<Image>();
+            bgImg.color = new Color(0.88f, 0.88f, 0.88f);
+            if (trackSprite != null) { bgImg.sprite = trackSprite; bgImg.type = Image.Type.Sliced; }
+
+            // Green fill bar from center
+            GameObject centerFill = UIFactory.CreateObject("CenterFill", sliderObj);
+            RectTransform cfRt = centerFill.GetComponent<RectTransform>();
+            cfRt.anchorMin = new Vector2(0.5f, 0.5f); cfRt.anchorMax = new Vector2(0.5f, 0.5f);
+            cfRt.sizeDelta = new Vector2(0, 3); cfRt.anchoredPosition = Vector2.zero;
+            Image cfImg = centerFill.AddComponent<Image>();
+            cfImg.color = new Color(0.31f, 0.86f, 0.45f);
+            if (trackSprite != null) { cfImg.sprite = trackSprite; cfImg.type = Image.Type.Sliced; }
+
+            // Invisible fill (required by Slider component)
+            GameObject fillArea = UIFactory.CreateObject("Fill Area", sliderObj);
+            RectTransform faRt = fillArea.GetComponent<RectTransform>();
+            faRt.anchorMin = new Vector2(0, 0.5f); faRt.anchorMax = new Vector2(1, 0.5f);
+            faRt.sizeDelta = new Vector2(0, 3);
+            GameObject fill = UIFactory.CreateObject("Fill", fillArea);
+            RectTransform fillRt = fill.GetComponent<RectTransform>();
+            fillRt.anchorMin = Vector2.zero; fillRt.anchorMax = new Vector2(0, 1);
+            fillRt.sizeDelta = Vector2.zero;
+            fill.AddComponent<Image>().color = new Color(0, 0, 0, 0);
+
+            // Handle area - full height for round handle
+            GameObject handleArea = UIFactory.CreateObject("Handle Slide Area", sliderObj);
+            RectTransform haRt = handleArea.GetComponent<RectTransform>();
+            haRt.anchorMin = Vector2.zero; haRt.anchorMax = Vector2.one;
+            haRt.offsetMin = new Vector2(7, 0); haRt.offsetMax = new Vector2(-7, 0);
+
+            GameObject handle = UIFactory.CreateObject("Handle", handleArea);
+            RectTransform hRt = handle.GetComponent<RectTransform>();
+            hRt.sizeDelta = new Vector2(14, 14);
+            Image handleImg = handle.AddComponent<Image>();
+            handleImg.color = Color.white;
+            handleImg.preserveAspect = true;
+            Sprite handleSprite = UIFactory.CreateRoundedRectSprite(32, 32, 16);
+            if (handleSprite != null) { handleImg.sprite = handleSprite; handleImg.type = Image.Type.Simple; }
+            handle.AddComponent<Outline>().effectColor = new Color(0.31f, 0.86f, 0.45f);
+
+            Slider slider = sliderObj.AddComponent<Slider>();
+            slider.fillRect = fillRt;
+            slider.handleRect = hRt;
+            slider.targetGraphic = handleImg;
+            slider.direction = Slider.Direction.LeftToRight;
+
+            AdjustmentCenterFill acf = sliderObj.AddComponent<AdjustmentCenterFill>();
+            acf.slider = slider;
+            acf.centerFillRect = cfRt;
+
+            return sliderObj;
         }
 
         private static void CreateSplitPresetButton(GameObject parent, string iconPath, string label, int cols, int rows, CanvasController controller)

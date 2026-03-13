@@ -20,6 +20,13 @@ namespace PocoRender.UI
         public InputField splitColsInput;
         public InputField splitRowsInput;
         public Text splitInfoText;
+        public GameObject adjustmentPanel;
+        public Slider[] adjustmentSliders;
+        public Text[] adjustmentValueTexts;
+        private Texture2D adjustmentOriginalTexture;
+        private Sprite adjustmentOriginalSprite;
+        public GameObject leftDrawer;
+        private string lastDrawerPanel = "Templates";
         
         // Position Info Fields (editable)
         public InputField posXInput;
@@ -245,6 +252,7 @@ namespace PocoRender.UI
             if (eraserOptionsPanel != null) eraserOptionsPanel.SetActive(false);
             if (opacityOptionsPanel != null) opacityOptionsPanel.SetActive(false);
             if (splitOptionsPanel != null) splitOptionsPanel.SetActive(false);
+            if (adjustmentPanel != null && adjustmentPanel.activeSelf) CloseAdjustmentPanel();
 
             if (currentSelection != null)
             {
@@ -621,6 +629,212 @@ namespace PocoRender.UI
             if (int.TryParse(field.text, out val) && val >= 1 && val <= 20)
                 return val;
             return fallback;
+        }
+
+        // ---- Adjustment Panel ----
+
+        public void ToggleAdjustmentPanel()
+        {
+            if (adjustmentPanel == null) return;
+
+            bool show = !adjustmentPanel.activeSelf;
+
+            if (show)
+            {
+                if (currentSelection == null)
+                {
+                    ShowInfoPopup("Select an image layer first");
+                    return;
+                }
+
+                if (cropOptionsPanel != null) cropOptionsPanel.SetActive(false);
+                if (eraserOptionsPanel != null) eraserOptionsPanel.SetActive(false);
+                if (opacityOptionsPanel != null) opacityOptionsPanel.SetActive(false);
+                if (splitOptionsPanel != null) splitOptionsPanel.SetActive(false);
+
+                Image img = currentSelection.GetComponent<Image>();
+                if (img == null || img.sprite == null) return;
+
+                adjustmentOriginalTexture = TextureEffects.SpriteTextureUtil.ExtractSpriteTexture(img.sprite, 0);
+                adjustmentOriginalSprite = img.sprite;
+
+                for (int i = 0; i < adjustmentSliders.Length; i++)
+                {
+                    adjustmentSliders[i].value = 0;
+                    adjustmentValueTexts[i].text = "0";
+                }
+
+                if (leftDrawer != null && adjustmentPanel.transform.parent != leftDrawer.transform)
+                    adjustmentPanel.transform.SetParent(leftDrawer.transform, false);
+
+                if (leftDrawer != null)
+                {
+                    foreach (Transform child in leftDrawer.transform)
+                        if (child.gameObject != adjustmentPanel) child.gameObject.SetActive(false);
+                }
+                adjustmentPanel.SetActive(true);
+            }
+            else
+            {
+                CloseAdjustmentPanel();
+            }
+        }
+
+        public void CloseAdjustmentPanel()
+        {
+            if (adjustmentPanel != null) adjustmentPanel.SetActive(false);
+            adjustmentOriginalTexture = null;
+            adjustmentOriginalSprite = null;
+
+            if (leftDrawer != null)
+            {
+                foreach (Transform child in leftDrawer.transform)
+                {
+                    if (child.gameObject != adjustmentPanel)
+                        child.gameObject.SetActive(true);
+                }
+            }
+        }
+
+        public void RestoreAdjustments()
+        {
+            if (adjustmentSliders == null) return;
+            for (int i = 0; i < adjustmentSliders.Length; i++)
+            {
+                adjustmentSliders[i].value = 0;
+                adjustmentValueTexts[i].text = "0";
+            }
+            ApplyAdjustments();
+        }
+
+        public void ApplyAdjustments()
+        {
+            if (currentSelection == null || adjustmentOriginalTexture == null) return;
+            Image img = currentSelection.GetComponent<Image>();
+            if (img == null) return;
+
+            float brightness = adjustmentSliders[0].value / 100f;
+            float contrast   = adjustmentSliders[1].value / 100f;
+            float saturation = adjustmentSliders[2].value / 100f;
+            float hue        = adjustmentSliders[3].value / 100f;
+            float temperature= adjustmentSliders[4].value / 100f;
+            float tint       = adjustmentSliders[5].value / 100f;
+            float highlights  = adjustmentSliders[6].value / 100f;
+            float shadows     = adjustmentSliders[7].value / 100f;
+            float sharpness   = adjustmentSliders[8].value / 100f;
+
+            int w = adjustmentOriginalTexture.width;
+            int h = adjustmentOriginalTexture.height;
+            Color[] srcPixels = adjustmentOriginalTexture.GetPixels();
+            Color[] dstPixels = new Color[srcPixels.Length];
+
+            // Exposure-style brightness: multiply by 2^(brightness*2)
+            // At slider 0 → 1x, at +100 → 4x, at -100 → 0.25x
+            float brightMul = Mathf.Pow(2f, brightness * 2f);
+
+            // Contrast: smooth S-curve. At 0 → 1x, at +1 → ~1.5x, at -1 → ~0.5x
+            float contrastFactor = Mathf.Max(0.01f, 1f + contrast);
+
+            float satMul = 1f + saturation;
+
+            for (int i = 0; i < srcPixels.Length; i++)
+            {
+                Color c = srcPixels[i];
+                float r = c.r, g = c.g, b = c.b, a = c.a;
+
+                // Brightness (multiplicative, preserves blacks)
+                r *= brightMul; g *= brightMul; b *= brightMul;
+
+                // Contrast (pivot at mid-gray 0.5)
+                r = (r - 0.5f) * contrastFactor + 0.5f;
+                g = (g - 0.5f) * contrastFactor + 0.5f;
+                b = (b - 0.5f) * contrastFactor + 0.5f;
+
+                // Saturation
+                float lum = 0.2126f * r + 0.7152f * g + 0.0722f * b;
+                r = lum + (r - lum) * satMul;
+                g = lum + (g - lum) * satMul;
+                b = lum + (b - lum) * satMul;
+
+                // Hue rotation
+                if (Mathf.Abs(hue) > 0.001f)
+                {
+                    float hVal, sVal, vVal;
+                    Color.RGBToHSV(new Color(Mathf.Clamp01(r), Mathf.Clamp01(g), Mathf.Clamp01(b)),
+                        out hVal, out sVal, out vVal);
+                    hVal = (hVal + hue + 1f) % 1f;
+                    Color hsv = Color.HSVToRGB(hVal, sVal, vVal);
+                    r = hsv.r; g = hsv.g; b = hsv.b;
+                }
+
+                // Temperature (warm/cool white balance)
+                if (Mathf.Abs(temperature) > 0.001f)
+                {
+                    float t = temperature * 0.15f;
+                    r += t;
+                    g += t * 0.4f;
+                    b -= t;
+                }
+
+                // Tint (green-magenta axis)
+                if (Mathf.Abs(tint) > 0.001f)
+                {
+                    float ti = tint * 0.15f;
+                    g += ti;
+                    r -= ti * 0.5f;
+                    b -= ti * 0.5f;
+                }
+
+                // Highlights (affect bright areas only)
+                if (Mathf.Abs(highlights) > 0.001f)
+                {
+                    float hl = 0.2126f * Mathf.Clamp01(r) + 0.7152f * Mathf.Clamp01(g) + 0.0722f * Mathf.Clamp01(b);
+                    float mask = Mathf.SmoothStep(0f, 1f, hl);
+                    float adj = highlights * mask * 0.4f;
+                    r += adj; g += adj; b += adj;
+                }
+
+                // Shadows (affect dark areas only)
+                if (Mathf.Abs(shadows) > 0.001f)
+                {
+                    float sl = 0.2126f * Mathf.Clamp01(r) + 0.7152f * Mathf.Clamp01(g) + 0.0722f * Mathf.Clamp01(b);
+                    float mask = Mathf.SmoothStep(1f, 0f, sl);
+                    float adj = shadows * mask * 0.4f;
+                    r += adj; g += adj; b += adj;
+                }
+
+                dstPixels[i] = new Color(Mathf.Clamp01(r), Mathf.Clamp01(g), Mathf.Clamp01(b), a);
+            }
+
+            // Sharpness (unsharp mask)
+            if (Mathf.Abs(sharpness) > 0.01f)
+            {
+                Color[] sharpened = new Color[dstPixels.Length];
+                System.Array.Copy(dstPixels, sharpened, dstPixels.Length);
+                float strength = sharpness * 2f;
+                for (int y = 1; y < h - 1; y++)
+                {
+                    for (int x = 1; x < w - 1; x++)
+                    {
+                        int idx = y * w + x;
+                        Color center = dstPixels[idx];
+                        Color avg = (dstPixels[idx - 1] + dstPixels[idx + 1] +
+                                     dstPixels[idx - w] + dstPixels[idx + w]) * 0.25f;
+                        float dr = center.r + (center.r - avg.r) * strength;
+                        float dg = center.g + (center.g - avg.g) * strength;
+                        float db = center.b + (center.b - avg.b) * strength;
+                        sharpened[idx] = new Color(Mathf.Clamp01(dr), Mathf.Clamp01(dg), Mathf.Clamp01(db), center.a);
+                    }
+                }
+                dstPixels = sharpened;
+            }
+
+            Texture2D resultTex = new Texture2D(w, h, TextureFormat.RGBA32, false, true);
+            resultTex.SetPixels(dstPixels);
+            resultTex.Apply();
+
+            Sprite newSprite = Sprite.Create(resultTex, new Rect(0, 0, w, h), new Vector2(0.5f, 0.5f), 100f, 0, SpriteMeshType.FullRect);
+            img.sprite = newSprite;
         }
 
         public void UpdatePrintAreaList()
@@ -1656,6 +1870,18 @@ namespace PocoRender.UI
 
         void Update()
         {
+            bool ctrl = Input.GetKey(KeyCode.LeftControl) || Input.GetKey(KeyCode.RightControl);
+            bool shift = Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift);
+
+            if (ctrl && shift && Input.GetKeyDown(KeyCode.Z))
+            {
+                Redo();
+            }
+            else if (ctrl && Input.GetKeyDown(KeyCode.Z))
+            {
+                Undo();
+            }
+
             // 1. Delete Selection
             if (currentSelection != null && (Input.GetKeyDown(KeyCode.Backspace) || Input.GetKeyDown(KeyCode.Delete)))
             {

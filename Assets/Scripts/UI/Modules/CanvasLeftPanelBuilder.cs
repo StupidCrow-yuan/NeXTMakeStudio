@@ -32,7 +32,7 @@ namespace PocoRender.UI.Modules
             dRect.offsetMax = Vector2.zero;
             drawer.AddComponent<Image>().color = Color.white; drawer.AddComponent<Outline>().effectColor = new Color(0.9f, 0.9f, 0.9f);
             VerticalLayoutGroup dVlg = drawer.AddComponent<VerticalLayoutGroup>();
-            dVlg.padding = new RectOffset(16, 16, 16, 16); dVlg.spacing = 10;
+            dVlg.padding = new RectOffset(10, 10, 16, 16); dVlg.spacing = 10;
             dVlg.childControlHeight = true; dVlg.childForceExpandHeight = false;
             dVlg.childControlWidth = true; dVlg.childForceExpandWidth = true;
 
@@ -198,6 +198,7 @@ namespace PocoRender.UI.Modules
                 btnObj.AddComponent<Button>().onClick.AddListener(() => ShowSidePanel(type));
             }
             ShowSidePanel("Templates");
+            controller.leftDrawer = drawer;
         }
     }
 }
