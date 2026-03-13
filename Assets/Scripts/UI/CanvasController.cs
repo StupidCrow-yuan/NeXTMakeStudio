@@ -2073,7 +2073,7 @@ namespace PocoRender.UI
             Material paperMat = SafeShaderHelper.CreateStandardMaterial();
             if (paperMat == null) paperMat = paperPlane.GetComponent<Renderer>().material;
             paperMat.color = Color.white;
-            if (paperMat.HasProperty("_Glossiness")) paperMat.SetFloat("_Glossiness", 0.2f);
+            if (paperMat.HasProperty("_Glossiness")) paperMat.SetFloat("_Glossiness", 0f);
             if (paperMat.HasProperty("_Metallic")) paperMat.SetFloat("_Metallic", 0f);
             paperPlane.GetComponent<Renderer>().material = paperMat;
 
@@ -2184,7 +2184,7 @@ namespace PocoRender.UI
 
                     Material mat = SafeShaderHelper.CreateStandardMaterial();
                     if (mat == null) mat = new Material(Shader.Find("Sprites/Default"));
-                    if (mat.HasProperty("_Glossiness")) mat.SetFloat("_Glossiness", 0.3f);
+                    if (mat.HasProperty("_Glossiness")) mat.SetFloat("_Glossiness", 0f);
                     if (mat.HasProperty("_Metallic")) mat.SetFloat("_Metallic", 0f);
 
                     if (selImg != null && selImg.sprite != null && selImg.sprite.texture != null)
@@ -2228,19 +2228,17 @@ namespace PocoRender.UI
             // brings a local area to full brightness -> visible texture detail highlight.
             Vector3 contentCenterLocal = new Vector3(0f, 0.06f, 0f);
 
-            // Directional key light: base illumination
+            // Directional key light: high enough so texture colours closely match the canvas
             GameObject keyLightObj = new GameObject("KeyLight");
             keyLightObj.transform.SetParent(miniDesignStage.transform);
             keyLightObj.transform.rotation = Quaternion.Euler(50, 30, 0);
             Light keyLight = keyLightObj.AddComponent<Light>();
             keyLight.type = LightType.Directional;
             keyLight.color = Color.white;
-            keyLight.intensity = 0.55f;
-            keyLight.cullingMask = -1; // Affect all layers
+            keyLight.intensity = 0.85f;
+            keyLight.cullingMask = -1;
             SetLayerRecursive(keyLightObj, previewLayer);
 
-            // Moving spotlight: aims straight down, spot moves with the light orbit.
-            // Height 8, spotAngle 10° → diameter ≈ 2*8*tan(5°) ≈ 1.4 units (~1/20 of 6x6 paper)
             GameObject lightObj = new GameObject("MovingLight");
             lightObj.transform.SetParent(miniDesignStage.transform);
             Light l = lightObj.AddComponent<Light>();
@@ -2249,9 +2247,9 @@ namespace PocoRender.UI
             l.spotAngle = 10f;
             l.innerSpotAngle = 6f;
             l.intensity = 2.5f;
-            l.color = new Color(1f, 0.99f, 0.97f);
+            l.color = Color.white;
             l.shadows = LightShadows.None;
-            l.cullingMask = -1; // Affect all layers
+            l.cullingMask = -1;
             lightObj.transform.localPosition = new Vector3(0, 8, 0);
             lightObj.transform.rotation = Quaternion.LookRotation(Vector3.down, Vector3.forward);
             SetLayerRecursive(lightObj, previewLayer);
@@ -2272,11 +2270,12 @@ namespace PocoRender.UI
                 miniModelViewer.sceneLight.enabled = false;
             }
 
-            // Low ambient so the spotlight sweep creates visible contrast
+            // Ambient high enough for faithful colour reproduction; the moving spotlight
+            // still creates a subtle highlight sweep on top of the base illumination.
             RenderSettings.ambientMode = UnityEngine.Rendering.AmbientMode.Trilight;
-            RenderSettings.ambientSkyColor = new Color(0.3f, 0.3f, 0.3f, 1f);
-            RenderSettings.ambientEquatorColor = new Color(0.25f, 0.25f, 0.25f, 1f);
-            RenderSettings.ambientGroundColor = new Color(0.2f, 0.2f, 0.2f, 1f);
+            RenderSettings.ambientSkyColor = new Color(0.55f, 0.55f, 0.55f, 1f);
+            RenderSettings.ambientEquatorColor = new Color(0.50f, 0.50f, 0.50f, 1f);
+            RenderSettings.ambientGroundColor = new Color(0.45f, 0.45f, 0.45f, 1f);
             
             miniModelViewer.RequestRender(5);
         }
@@ -2336,8 +2335,9 @@ namespace PocoRender.UI
                     resizeDebounceTimer = -1f;
                     if (miniModelViewer != null && miniPreviewPanel != null && miniPreviewPanel.activeSelf)
                     {
-                        // Just refresh the RenderTexture size, keeping the scene intact
                         miniModelViewer.InitializeRenderer();
+                        miniModelViewer.FocusOnModel();
+                        miniModelViewer.RequestRender(5);
                     }
                 }
             }
@@ -2397,8 +2397,14 @@ namespace PocoRender.UI
         private void RefreshMiniPreviewOnResize()
         {
             if (miniPreviewPanel == null || !miniPreviewPanel.activeSelf) return;
-            // Reset timer on each resize frame; rebuild only fires once resizing stops.
+            Canvas.ForceUpdateCanvases();
             resizeDebounceTimer = RESIZE_DEBOUNCE_DELAY;
+            if (miniModelViewer != null)
+            {
+                miniModelViewer.InitializeRenderer();
+                miniModelViewer.FocusOnModel();
+                miniModelViewer.RequestRender(2);
+            }
         }
 
         void OnDisable()

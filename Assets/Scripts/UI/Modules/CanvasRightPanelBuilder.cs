@@ -173,7 +173,10 @@ namespace PocoRender.UI.Modules
             miniPrev.AddComponent<Outline>().effectColor = new Color(0.9f, 0.9f, 0.9f);
             AspectRatioFitter arf = miniPrev.AddComponent<AspectRatioFitter>();
             arf.aspectMode = AspectRatioFitter.AspectMode.WidthControlsHeight; arf.aspectRatio = 1.0f;
-            miniPrev.AddComponent<LayoutElement>().preferredHeight = 220;
+            LayoutElement le = miniPrev.AddComponent<LayoutElement>();
+            le.preferredHeight = 220;
+            le.minHeight = 120;
+            le.minWidth = 120;
             
             // Customize Upload
             GameObject custPanel = UIFactory.CreateObject("CustomizeUpload", layerPanel);

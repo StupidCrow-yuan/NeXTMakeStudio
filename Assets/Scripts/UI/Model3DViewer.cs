@@ -23,6 +23,7 @@ namespace PocoRender.UI
         private RenderTexture renderTexture;
         private GameObject currentModel;
         private Camera modelCamera;
+        private Vector2 lastTargetRectSize = Vector2.zero;
 
         private float currentYaw = 0f; // Facing North from South
         private float currentPitch = 35f;
@@ -52,6 +53,8 @@ namespace PocoRender.UI
 
         public void InitializeRenderer()
         {
+            Canvas.ForceUpdateCanvases();
+
             // Calculate dynamic resolution based on target image or screen aspect ratio
             int width = textureWidth;
             int height = textureHeight;
@@ -61,6 +64,10 @@ namespace PocoRender.UI
             if (targetImage != null)
             {
                 RectTransform rt = targetImage.GetComponent<RectTransform>();
+                if (rt != null)
+                {
+                    LayoutRebuilder.ForceRebuildLayoutImmediate(rt);
+                }
                 float rtW = (rt != null) ? rt.rect.width : 0f;
                 float rtH = (rt != null) ? rt.rect.height : 0f;
                 if (rtH <= 0f && rt != null)
@@ -70,11 +77,19 @@ namespace PocoRender.UI
                 }
                 float aspect = (rtH > 0f) ? (rtW / rtH) : ((float)Screen.width / Screen.height);
 
-                // Keep height, derive width from aspect for a clean RenderTexture
                 if (height > 0)
                 {
                     width = Mathf.Max(1, Mathf.RoundToInt(height * aspect));
                 }
+
+                lastTargetRectSize = new Vector2(rtW, rtH);
+            }
+
+            // Guard against zero/tiny dimensions during layout transitions (e.g. window resize)
+            if (width < 8 || height < 8)
+            {
+                width = Mathf.Max(width, 256);
+                height = Mathf.Max(height, 256);
             }
 
             // Check if we can reuse existing RT
@@ -89,10 +104,9 @@ namespace PocoRender.UI
                 return; // Nothing changed, skip expensive rebuild
             }
 
-            // Create RenderTexture with fixed dimensions
             if (renderTexture != null) renderTexture.Release();
             renderTexture = new RenderTexture(width, height, 24);
-            renderTexture.antiAliasing = 4; // Reduced from 8 to 4 for performance 
+            renderTexture.antiAliasing = 4;
 
             // Reuse existing camera if available; only create a new one on first init
             bool isReinit = (modelCamera != null);
@@ -537,6 +551,35 @@ namespace PocoRender.UI
 
         void LateUpdate()
         {
+            // In the Unity editor, dragging layout splitters can resize the RawImage without
+            // changing Screen.width/height. Watch the target rect directly so the mini preview
+            // recenters itself in editor layout changes as well.
+            if (targetImage != null)
+            {
+                RectTransform rt = targetImage.GetComponent<RectTransform>();
+                if (rt != null)
+                {
+                    Vector2 currentSize = rt.rect.size;
+                    if (currentSize.x <= 0f || currentSize.y <= 0f)
+                    {
+                        currentSize = rt.sizeDelta;
+                    }
+
+                    if (currentSize.x > 1f && currentSize.y > 1f &&
+                        (Mathf.Abs(currentSize.x - lastTargetRectSize.x) > 0.5f ||
+                         Mathf.Abs(currentSize.y - lastTargetRectSize.y) > 0.5f))
+                    {
+                        lastTargetRectSize = currentSize;
+                        InitializeRenderer();
+                        if (currentModel != null)
+                        {
+                            FocusOnModel();
+                        }
+                        RequestRender(3);
+                    }
+                }
+            }
+
             if (renderFramesRemaining > 0 && modelCamera != null && renderTexture != null)
             {
                 modelCamera.Render();

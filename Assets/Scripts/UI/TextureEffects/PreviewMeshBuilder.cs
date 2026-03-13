@@ -86,7 +86,7 @@ namespace PocoRender.UI.TextureEffects
                 }
             }
 
-            Texture2D tex = new Texture2D(w, h, TextureFormat.RGBA32, false, true);
+            Texture2D tex = new Texture2D(w, h, TextureFormat.RGBA32, false, false);
             tex.SetPixels32(dst);
             tex.Apply(false, false);
             tex.wrapMode = TextureWrapMode.Clamp;

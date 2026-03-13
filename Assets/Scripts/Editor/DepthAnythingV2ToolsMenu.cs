@@ -1,12 +1,12 @@
-﻿using UnityEditor;
+using UnityEditor;
 using UnityEngine;
 
 namespace PocoRender.UI.EditorTools
 {
     public static class DepthAnythingV2ToolsMenu
     {
-        private const string VitsPath = "Assets/AI/DepthAnythingV2/depth_anything_v2_vits.onnx";
-        private const string VitbPath = "Assets/AI/DepthAnythingV2/depth_anything_v2_vitb.onnx";
+        private const string VitsPath = "Assets/Resources/Models/DepthAnythingV2/depth_anything_v2_vits.onnx";
+        private const string VitbPath = "Assets/Resources/Models/DepthAnythingV2/depth_anything_v2_vitb.onnx";
 
         [MenuItem("Tools/DepthAnythingV2/Force Bind Settings Model")]
         private static void ForceBind()

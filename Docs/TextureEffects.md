@@ -118,7 +118,7 @@
 当前工程**不内置** ONNX 模型文件。需要团队自行下载并导入 Unity（通常因为模型体积大、版本迭代快、以及避免二次分发问题）。
 
 ### 6.2 推荐的资产组织方式
-- 将 `.onnx` 放在 `Assets/AI/DepthAnythingV2/`（示例路径）
+- 将 `.onnx` 放在 `Assets/Resources/Models/DepthAnythingV2/`（示例路径）
   - small: `depth_anything_v2_vits.onnx`
   - base: `depth_anything_v2_vitb.onnx`
 - Unity 会生成对应的 `ModelAsset`

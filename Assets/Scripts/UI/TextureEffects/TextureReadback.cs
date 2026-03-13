@@ -1,4 +1,4 @@
-﻿using UnityEngine;
+using UnityEngine;
 
 namespace PocoRender.UI.TextureEffects
 {
@@ -26,12 +26,14 @@ namespace PocoRender.UI.TextureEffects
             int w = Mathf.Max(2, Mathf.RoundToInt(srcW * scale));
             int h = Mathf.Max(2, Mathf.RoundToInt(srcH * scale));
 
-            RenderTexture rt = RenderTexture.GetTemporary(w, h, 0, RenderTextureFormat.ARGB32, RenderTextureReadWrite.Linear);
+            // The source image shown on the canvas is authored as a normal sRGB image.
+            // Read it back through an sRGB RT so the mini preview does not pick up a warm/washed tint.
+            RenderTexture rt = RenderTexture.GetTemporary(w, h, 0, RenderTextureFormat.ARGB32, RenderTextureReadWrite.sRGB);
             RenderTexture prev = RenderTexture.active;
             Graphics.Blit(source, rt);
 
             RenderTexture.active = rt;
-            Texture2D tex = new Texture2D(w, h, TextureFormat.RGBA32, false, true);
+            Texture2D tex = new Texture2D(w, h, TextureFormat.RGBA32, false, false);
             tex.ReadPixels(new Rect(0, 0, w, h), 0, 0);
             tex.Apply(false, false);
 

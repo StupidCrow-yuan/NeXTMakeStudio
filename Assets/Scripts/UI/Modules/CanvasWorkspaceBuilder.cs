@@ -187,7 +187,7 @@ namespace PocoRender.UI.Modules
             else { zSep2Img.color = new Color(0.82f, 0.82f, 0.82f); }
             LayoutElement zSep2Le = zSep2.AddComponent<LayoutElement>(); zSep2Le.minWidth = 8; zSep2Le.preferredWidth = 8;
 
-            Sprite handSpr = Resources.Load<Sprite>("EditIcons/p_hand");
+            Sprite handSpr = Resources.Load<Sprite>("EditIcons/p_edit_handline");
             GameObject handBtn = UIFactory.CreateObject("HandBtn", ctrlBar);
             handBtn.GetComponent<RectTransform>().sizeDelta = new Vector2(26, 26);
             Image handImg = handBtn.AddComponent<Image>();

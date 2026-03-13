@@ -1,4 +1,4 @@
-﻿using UnityEditor;
+using UnityEditor;
 using UnityEngine;
 
 #if HAS_SENTIS
@@ -16,8 +16,8 @@ namespace PocoRender.UI.EditorTools
     public static class DepthAnythingV2ModelAutoBind
     {
         private const string SettingsPath = "Assets/Resources/DepthAnythingV2Settings.asset";
-        private const string VitsPath = "Assets/AI/DepthAnythingV2/depth_anything_v2_vits.onnx";
-        private const string VitbPath = "Assets/AI/DepthAnythingV2/depth_anything_v2_vitb.onnx";
+        private const string VitsPath = "Assets/Resources/Models/DepthAnythingV2/depth_anything_v2_vits.onnx";
+        private const string VitbPath = "Assets/Resources/Models/DepthAnythingV2/depth_anything_v2_vitb.onnx";
         private static bool _loggedNotFoundOnce;
 
         static DepthAnythingV2ModelAutoBind()

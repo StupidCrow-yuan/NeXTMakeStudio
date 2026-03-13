@@ -12,6 +12,7 @@ namespace PocoRender.UI.TextureEffects
 
             Material m = new Material(shader);
             SetMaterialTransparent(m);
+            m.color = Color.white;
 
             m.mainTexture = mainTex;
 
@@ -32,6 +33,7 @@ namespace PocoRender.UI.TextureEffects
 
             // Reduce glossy look for clearer relief
             m.SetFloat("_Glossiness", 0.0f);
+            m.SetFloat("_Metallic", 0.0f);
             return m;
         }
 
