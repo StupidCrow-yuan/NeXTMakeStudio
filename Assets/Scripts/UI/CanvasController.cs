@@ -100,6 +100,9 @@ namespace PocoRender.UI
         
         [Header("Upload Panel")]
         public GameObject uploadListContainer;
+        private List<string> uploadedImagePaths = new List<string>();
+        private static string UploadCachePath => Path.Combine(Application.persistentDataPath, "UploadCache");
+        private static string UploadManifestPath => Path.Combine(Application.persistentDataPath, "UploadCache", "manifest.txt");
         
         private GameObject currentSelection;
         private GameObject rotationHandle;
@@ -1580,41 +1583,269 @@ namespace PocoRender.UI
             return true;
         }
 
-        private void AddUploadedListItem(string originalPath, Texture2D texture)
+        private void SaveUploadToCache(string originalPath, Texture2D texture)
         {
-            if (uploadListContainer == null || texture == null)
-            {
-                return;
-            }
-            var emptyHint = uploadListContainer.transform.Find("UploadEmptyHint");
-            if (emptyHint != null) Destroy(emptyHint.gameObject);
+            if (texture == null || string.IsNullOrEmpty(originalPath)) return;
 
-            GameObject item = UIFactory.CreateObject("UploadItem", uploadListContainer);
-            item.AddComponent<LayoutElement>().minHeight = 72;
-            HorizontalLayoutGroup hlg = item.AddComponent<HorizontalLayoutGroup>();
-            hlg.spacing = 8;
-            hlg.padding = new RectOffset(6, 6, 6, 6);
-            hlg.childAlignment = TextAnchor.MiddleLeft;
-            hlg.childControlWidth = false;
-            hlg.childControlHeight = false;
-
-            GameObject thumb = UIFactory.CreateObject("Thumb", item);
-            thumb.AddComponent<LayoutElement>().minWidth = 60;
-            thumb.GetComponent<LayoutElement>().minHeight = 60;
-            Image thumbImage = thumb.AddComponent<Image>();
-            thumbImage.preserveAspect = true;
-            thumbImage.sprite = Sprite.Create(texture, new Rect(0, 0, texture.width, texture.height), new Vector2(0.5f, 0.5f));
-
-            GameObject info = UIFactory.CreateObject("Info", item);
-            VerticalLayoutGroup ivlg = info.AddComponent<VerticalLayoutGroup>();
-            ivlg.spacing = 2;
-            ivlg.childAlignment = TextAnchor.MiddleLeft;
-            info.AddComponent<LayoutElement>().minWidth = 180;
+            if (!Directory.Exists(UploadCachePath))
+                Directory.CreateDirectory(UploadCachePath);
 
             string fileName = Path.GetFileName(originalPath);
-            string ext = Path.GetExtension(originalPath);
-            UIFactory.CreateText(fileName, info, 11, Color.black, Vector2.zero, Vector2.zero, TextAnchor.MiddleLeft, FontStyle.Bold);
-            UIFactory.CreateText($"{texture.width}x{texture.height}  ({ext.ToUpperInvariant()})", info, 10, Color.gray, Vector2.zero, Vector2.zero, TextAnchor.MiddleLeft, FontStyle.Normal);
+            string destPath = Path.Combine(UploadCachePath, fileName);
+            int counter = 1;
+            while (File.Exists(destPath))
+            {
+                destPath = Path.Combine(UploadCachePath, Path.GetFileNameWithoutExtension(fileName) + "_" + counter + Path.GetExtension(fileName));
+                counter++;
+            }
+
+            byte[] png = texture.EncodeToPNG();
+            if (png != null && png.Length > 0)
+            {
+                File.WriteAllBytes(destPath, png);
+                uploadedImagePaths.Add(destPath);
+                SaveUploadManifest();
+            }
+        }
+
+        private void SaveUploadManifest()
+        {
+            if (!Directory.Exists(UploadCachePath))
+                Directory.CreateDirectory(UploadCachePath);
+            File.WriteAllLines(UploadManifestPath, uploadedImagePaths.ToArray());
+        }
+
+        public void LoadUploadedImages()
+        {
+            uploadedImagePaths.Clear();
+            if (!File.Exists(UploadManifestPath)) return;
+
+            string[] lines = File.ReadAllLines(UploadManifestPath);
+            foreach (string line in lines)
+            {
+                string path = line.Trim();
+                if (!string.IsNullOrEmpty(path) && File.Exists(path))
+                    uploadedImagePaths.Add(path);
+            }
+            RefreshUploadGrid();
+        }
+
+        public void RefreshUploadGrid()
+        {
+            if (uploadListContainer == null) return;
+            foreach (Transform child in uploadListContainer.transform)
+                Destroy(child.gameObject);
+
+            if (uploadedImagePaths.Count == 0)
+            {
+                UIFactory.CreateText("No uploads yet.", uploadListContainer, 11, Color.gray, Vector2.zero, new Vector2(0, 22), TextAnchor.MiddleLeft, FontStyle.Normal).name = "UploadEmptyHint";
+                return;
+            }
+
+            foreach (string cachedPath in uploadedImagePaths)
+            {
+                if (!File.Exists(cachedPath)) continue;
+                CreateUploadThumbnail(cachedPath);
+            }
+        }
+
+        private void CreateUploadThumbnail(string cachedPath)
+        {
+            if (uploadListContainer == null) return;
+
+            byte[] data;
+            try { data = File.ReadAllBytes(cachedPath); } catch { return; }
+
+            Texture2D tex = new Texture2D(2, 2, TextureFormat.RGBA32, false, false);
+            if (!tex.LoadImage(data)) { Destroy(tex); return; }
+
+            float thumbSize = 80f;
+            GameObject item = UIFactory.CreateObject("UploadThumb", uploadListContainer);
+            RectTransform itemRt = item.GetComponent<RectTransform>();
+            itemRt.sizeDelta = new Vector2(thumbSize, thumbSize);
+            item.AddComponent<LayoutElement>().preferredWidth = thumbSize;
+            item.GetComponent<LayoutElement>().preferredHeight = thumbSize;
+
+            Image thumbImg = item.AddComponent<Image>();
+            thumbImg.sprite = Sprite.Create(tex, new Rect(0, 0, tex.width, tex.height), new Vector2(0.5f, 0.5f));
+            thumbImg.preserveAspect = true;
+            thumbImg.color = Color.white;
+
+            // Click to add to canvas
+            string path = cachedPath;
+            Button clickBtn = item.AddComponent<Button>();
+            clickBtn.targetGraphic = thumbImg;
+            clickBtn.onClick.AddListener(() =>
+            {
+                if (!File.Exists(path)) return;
+                if (TryLoadPngTextureFromFile(path, out Texture2D canvasTex, out string _err))
+                    AddTextureToCanvas(path, canvasTex);
+            });
+
+            // Checkbox (top-left, hidden until hover)
+            GameObject checkObj = UIFactory.CreateObject("Check", item);
+            RectTransform checkRt = checkObj.GetComponent<RectTransform>();
+            checkRt.anchorMin = new Vector2(0, 1); checkRt.anchorMax = new Vector2(0, 1);
+            checkRt.pivot = new Vector2(0, 1);
+            checkRt.sizeDelta = new Vector2(20, 20);
+            checkRt.anchoredPosition = new Vector2(4, -4);
+            Image checkBg = checkObj.AddComponent<Image>();
+            checkBg.color = new Color(1, 1, 1, 0.85f);
+            GameObject checkMark = UIFactory.CreateObject("CheckIcon", checkObj);
+            RectTransform cmRt = checkMark.GetComponent<RectTransform>();
+            cmRt.anchorMin = new Vector2(0.15f, 0.15f); cmRt.anchorMax = new Vector2(0.85f, 0.85f);
+            cmRt.offsetMin = Vector2.zero; cmRt.offsetMax = Vector2.zero;
+            Image cmImg = checkMark.AddComponent<Image>();
+            Sprite checkSpr = Resources.Load<Sprite>("EditIcons/p_check");
+            if (checkSpr != null) { cmImg.sprite = checkSpr; cmImg.preserveAspect = true; }
+            cmImg.color = Color.white;
+            checkMark.SetActive(false);
+            checkObj.SetActive(false);
+
+            // Menu dots (top-right, hidden until hover)
+            GameObject menuObj = UIFactory.CreateObject("Menu", item);
+            RectTransform menuRt = menuObj.GetComponent<RectTransform>();
+            menuRt.anchorMin = new Vector2(1, 1); menuRt.anchorMax = new Vector2(1, 1);
+            menuRt.pivot = new Vector2(1, 1);
+            menuRt.sizeDelta = new Vector2(22, 22);
+            menuRt.anchoredPosition = new Vector2(-2, -2);
+            Image menuBg = menuObj.AddComponent<Image>();
+            menuBg.color = new Color(1, 1, 1, 0.85f);
+            Sprite dotsSpr = Resources.Load<Sprite>("EditIcons/p_dot-three-v-lined");
+            if (dotsSpr != null)
+            {
+                GameObject dotsIcon = UIFactory.CreateObject("DotsIcon", menuObj);
+                RectTransform diRt = dotsIcon.GetComponent<RectTransform>();
+                diRt.anchorMin = new Vector2(0.2f, 0.2f); diRt.anchorMax = new Vector2(0.8f, 0.8f);
+                diRt.offsetMin = Vector2.zero; diRt.offsetMax = Vector2.zero;
+                Image diImg = dotsIcon.AddComponent<Image>();
+                diImg.sprite = dotsSpr; diImg.preserveAspect = true; diImg.color = new Color(0.3f, 0.3f, 0.3f);
+            }
+            else
+            {
+                Text menuDots = UIFactory.CreateText("\u22EE", menuObj, 14, Color.black, Vector2.zero, Vector2.zero, TextAnchor.MiddleCenter).GetComponent<Text>();
+                UIFactory.Stretch(menuDots.GetComponent<RectTransform>());
+            }
+            menuObj.SetActive(false);
+
+            Button menuBtn = menuObj.AddComponent<Button>();
+            menuBtn.targetGraphic = menuBg;
+            menuBtn.onClick.AddListener(() => ShowUploadItemMenu(item, path, checkObj));
+
+            // Hover handler
+            UploadThumbnailHover hover = item.AddComponent<UploadThumbnailHover>();
+            hover.checkObj = checkObj;
+            hover.menuObj = menuObj;
+        }
+
+        private void ShowUploadItemMenu(GameObject anchor, string cachedPath, GameObject checkObj)
+        {
+            if (activePopup != null) Destroy(activePopup);
+
+            GameObject overlay = UIFactory.CreateObject("MenuOverlay", editorArea != null ? editorArea : gameObject);
+            UIFactory.Stretch(overlay.GetComponent<RectTransform>());
+            overlay.AddComponent<Image>().color = new Color(0, 0, 0, 0.01f);
+            overlay.AddComponent<Button>().onClick.AddListener(() => Destroy(overlay));
+            overlay.transform.SetAsLastSibling();
+
+            GameObject menu = UIFactory.CreateObject("PopupMenu", overlay);
+            RectTransform mRt = menu.GetComponent<RectTransform>();
+            mRt.sizeDelta = new Vector2(100, 60);
+
+            Vector3[] corners = new Vector3[4];
+            anchor.GetComponent<RectTransform>().GetWorldCorners(corners);
+            mRt.position = corners[1]; // top-right area
+
+            Image menuBg = menu.AddComponent<Image>();
+            menuBg.color = Color.white;
+            menu.AddComponent<UnityEngine.UI.Outline>().effectColor = new Color(0.85f, 0.85f, 0.85f);
+
+            VerticalLayoutGroup mvlg = menu.AddComponent<VerticalLayoutGroup>();
+            mvlg.padding = new RectOffset(4, 4, 4, 4);
+            mvlg.spacing = 2;
+            mvlg.childControlWidth = true; mvlg.childControlHeight = true;
+            mvlg.childForceExpandWidth = true;
+
+            // Select option
+            GameObject selectBtn = UIFactory.CreateButton("Select", menu, Vector2.zero, new Vector2(0, 24), Color.white, Color.black);
+            selectBtn.GetComponent<Button>().onClick.AddListener(() =>
+            {
+                if (checkObj != null)
+                {
+                    Image chk = checkObj.GetComponent<Image>();
+                    bool selected = chk.color.g > 0.5f && chk.color.r < 0.5f;
+                    chk.color = selected ? new Color(1, 1, 1, 0.85f) : new Color(0.3f, 0.85f, 0.4f, 1f);
+                    Transform cmT = checkObj.transform.Find("CheckIcon");
+                    if (cmT != null) cmT.gameObject.SetActive(!selected);
+                    checkObj.SetActive(true);
+                }
+                Destroy(overlay);
+            });
+            selectBtn.GetComponentInChildren<Text>().fontSize = 12;
+
+            // Delete option
+            GameObject deleteBtn = UIFactory.CreateButton("Delete", menu, Vector2.zero, new Vector2(0, 24), Color.white, new Color(0.8f, 0.2f, 0.2f));
+            deleteBtn.GetComponent<Button>().onClick.AddListener(() =>
+            {
+                Destroy(overlay);
+                ShowDeleteConfirmation(cachedPath);
+            });
+            deleteBtn.GetComponentInChildren<Text>().fontSize = 12;
+
+            activePopup = overlay;
+        }
+
+        private void ShowDeleteConfirmation(string cachedPath)
+        {
+            if (activePopup != null) Destroy(activePopup);
+
+            GameObject overlay = UIFactory.CreateObject("DeleteConfirm", editorArea != null ? editorArea : gameObject);
+            UIFactory.Stretch(overlay.GetComponent<RectTransform>());
+            overlay.AddComponent<Image>().color = new Color(0, 0, 0, 0.35f);
+            overlay.transform.SetAsLastSibling();
+
+            GameObject panel = UIFactory.CreateObject("Panel", overlay);
+            panel.GetComponent<RectTransform>().sizeDelta = new Vector2(300, 120);
+            panel.AddComponent<Image>().color = Color.white;
+            panel.AddComponent<UnityEngine.UI.Outline>().effectColor = new Color(0.85f, 0.85f, 0.85f);
+
+            VerticalLayoutGroup pvlg = panel.AddComponent<VerticalLayoutGroup>();
+            pvlg.padding = new RectOffset(20, 20, 16, 16); pvlg.spacing = 12;
+            pvlg.childAlignment = TextAnchor.MiddleCenter;
+            pvlg.childControlWidth = true; pvlg.childControlHeight = true;
+            pvlg.childForceExpandHeight = false;
+
+            UIFactory.CreateText("Delete this image?", panel, 14, Color.black, Vector2.zero, Vector2.zero, TextAnchor.MiddleCenter);
+
+            GameObject btnRow = UIFactory.CreateObject("BtnRow", panel);
+            HorizontalLayoutGroup bhlg = btnRow.AddComponent<HorizontalLayoutGroup>();
+            bhlg.spacing = 12; bhlg.childAlignment = TextAnchor.MiddleCenter;
+            bhlg.childControlWidth = false; bhlg.childControlHeight = false;
+            btnRow.AddComponent<LayoutElement>().minHeight = 32;
+
+            GameObject cancelBtn = UIFactory.CreateButton("Cancel", btnRow, Vector2.zero, new Vector2(80, 30), new Color(0.95f, 0.95f, 0.95f), Color.black);
+            cancelBtn.GetComponent<Button>().onClick.AddListener(() => Destroy(overlay));
+            cancelBtn.GetComponentInChildren<Text>().fontSize = 12;
+
+            GameObject confirmBtn = UIFactory.CreateButton("Delete", btnRow, Vector2.zero, new Vector2(80, 30), new Color(0.85f, 0.2f, 0.2f), Color.white);
+            confirmBtn.GetComponent<Button>().onClick.AddListener(() =>
+            {
+                uploadedImagePaths.Remove(cachedPath);
+                SaveUploadManifest();
+                try { if (File.Exists(cachedPath)) File.Delete(cachedPath); } catch { }
+                RefreshUploadGrid();
+                Destroy(overlay);
+            });
+            confirmBtn.GetComponentInChildren<Text>().fontSize = 12;
+
+            activePopup = overlay;
+        }
+
+        private void AddUploadedListItem(string originalPath, Texture2D texture)
+        {
+            if (texture == null) return;
+            SaveUploadToCache(originalPath, texture);
+            RefreshUploadGrid();
         }
 
         private void AddTextureToCanvas(string originalPath, Texture2D texture)

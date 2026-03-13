@@ -84,11 +84,37 @@ namespace PocoRender.UI.Modules
                             uvlg.childForceExpandHeight = false;
 
                             string supported = CanvasController.GetUploadSupportedFormatsText();
-                            GameObject uploadBtn = UIFactory.CreateButton($"Upload ({supported})", uploadWrap, Vector2.zero, new Vector2(0, 36), Color.white, Color.black);
-                            LayoutElement btnLe = uploadBtn.AddComponent<LayoutElement>();
-                            btnLe.minHeight = 36;
-                            btnLe.flexibleHeight = 0;
-                            uploadBtn.GetComponent<Button>().onClick.AddListener(() => controller.OnUploadCanvasAsset());
+
+                            // Upload button with p_upload.png icon + text in one row
+                            GameObject uploadBtn = UIFactory.CreateObject("UploadBtn", uploadWrap);
+                            uploadBtn.AddComponent<Image>().color = Color.white;
+                            uploadBtn.AddComponent<UnityEngine.UI.Outline>().effectColor = new Color(0.85f, 0.85f, 0.85f);
+                            Button ubBtn = uploadBtn.AddComponent<Button>();
+                            ubBtn.targetGraphic = uploadBtn.GetComponent<Image>();
+                            ubBtn.onClick.AddListener(() => controller.OnUploadCanvasAsset());
+
+                            HorizontalLayoutGroup ubHlg = uploadBtn.AddComponent<HorizontalLayoutGroup>();
+                            ubHlg.spacing = 6; ubHlg.childAlignment = TextAnchor.MiddleCenter;
+                            ubHlg.padding = new RectOffset(8, 8, 4, 4);
+                            ubHlg.childControlWidth = true; ubHlg.childControlHeight = false;
+                            ubHlg.childForceExpandWidth = false;
+                            LayoutElement ubLe = uploadBtn.AddComponent<LayoutElement>();
+                            ubLe.minHeight = 36; ubLe.flexibleHeight = 0;
+
+                            Sprite uploadIconSpr = Resources.Load<Sprite>("EditIcons/p_upload");
+                            if (uploadIconSpr != null)
+                            {
+                                GameObject uploadIconObj = UIFactory.CreateObject("UploadIcon", uploadBtn);
+                                uploadIconObj.GetComponent<RectTransform>().sizeDelta = new Vector2(16, 16);
+                                Image uiImg = uploadIconObj.AddComponent<Image>();
+                                uiImg.sprite = uploadIconSpr; uiImg.preserveAspect = true; uiImg.color = Color.black;
+                                LayoutElement iconLE = uploadIconObj.AddComponent<LayoutElement>();
+                                iconLE.minWidth = 16; iconLE.preferredWidth = 16; iconLE.minHeight = 16;
+                            }
+
+                            GameObject uploadLabel = UIFactory.CreateText(supported, uploadBtn, 11, new Color(0.4f, 0.4f, 0.4f), Vector2.zero, new Vector2(0, 20), TextAnchor.MiddleLeft);
+                            LayoutElement lblLE = uploadLabel.AddComponent<LayoutElement>();
+                            lblLE.flexibleWidth = 1; lblLE.minHeight = 20;
 
                             GameObject listBg = UIFactory.CreateObject("UploadListBg", uploadWrap);
                             listBg.AddComponent<Image>().color = new Color(0.97f, 0.97f, 0.97f, 1f);
@@ -114,19 +140,19 @@ namespace PocoRender.UI.Modules
                             lcRt.anchorMax = new Vector2(1, 1);
                             lcRt.pivot = new Vector2(0.5f, 1);
                             lcRt.sizeDelta = new Vector2(0, 0);
-                            VerticalLayoutGroup lvlg = listContent.AddComponent<VerticalLayoutGroup>();
-                            lvlg.spacing = 6;
-                            lvlg.padding = new RectOffset(4, 4, 4, 4);
-                            lvlg.childControlHeight = true;
-                            lvlg.childControlWidth = true;
-                            lvlg.childForceExpandHeight = false;
+                            GridLayoutGroup glg = listContent.AddComponent<GridLayoutGroup>();
+                            glg.cellSize = new Vector2(80, 80);
+                            glg.spacing = new Vector2(6, 6);
+                            glg.padding = new RectOffset(4, 4, 4, 4);
+                            glg.constraint = GridLayoutGroup.Constraint.FixedColumnCount;
+                            glg.constraintCount = 3;
+                            glg.childAlignment = TextAnchor.UpperLeft;
                             listContent.AddComponent<ContentSizeFitter>().verticalFit = ContentSizeFitter.FitMode.PreferredSize;
-
-                            UIFactory.CreateText("No uploads yet.", listContent, 11, Color.gray, Vector2.zero, new Vector2(0, 22), TextAnchor.MiddleLeft, FontStyle.Normal).name = "UploadEmptyHint";
 
                             sr.viewport = vp.GetComponent<RectTransform>();
                             sr.content = lcRt;
                             controller.uploadListContainer = listContent;
+                            controller.LoadUploadedImages();
                         }
                         break;
                     case "Templates":
@@ -181,11 +207,16 @@ namespace PocoRender.UI.Modules
                 btnObj.AddComponent<Image>().color = new Color(0,0,0,0.01f);
                 VerticalLayoutGroup btnVlg = btnObj.AddComponent<VerticalLayoutGroup>();
                 btnVlg.spacing = 2; btnVlg.padding = new RectOffset(2, 2, 4, 4); btnVlg.childAlignment = TextAnchor.MiddleCenter; btnVlg.childControlHeight = false; btnVlg.childForceExpandHeight = false;
-                Sprite iconSprite = !string.IsNullOrEmpty(resName) ? Resources.Load<Sprite>("Icons/" + resName) : null;
+                Sprite iconSprite = null;
+                if (t == "Upload")
+                    iconSprite = Resources.Load<Sprite>("EditIcons/p_upload image");
+                else if (!string.IsNullOrEmpty(resName))
+                    iconSprite = Resources.Load<Sprite>("Icons/" + resName);
                 if (iconSprite != null) {
+                    float iconSize = (t == "Upload") ? 7f : 22f;
                     GameObject iconObj = UIFactory.CreateObject("Icon", btnObj);
                     Image iconImg = iconObj.AddComponent<Image>(); iconImg.sprite = iconSprite; iconImg.color = new Color(0.4f, 0.4f, 0.4f);
-                    var iconLe = iconObj.AddComponent<LayoutElement>(); iconLe.minWidth = 22; iconLe.minHeight = 22; iconLe.preferredWidth = 22; iconLe.preferredHeight = 22;
+                    var iconLe = iconObj.AddComponent<LayoutElement>(); iconLe.minWidth = iconSize; iconLe.minHeight = iconSize; iconLe.preferredWidth = iconSize; iconLe.preferredHeight = iconSize;
                 } else if (!string.IsNullOrEmpty(iconChar)) {
                     GameObject iconObj = UIFactory.CreateText(iconChar, btnObj, 16, new Color(0.35f, 0.35f, 0.35f), Vector2.zero, new Vector2(0, 18), TextAnchor.MiddleCenter);
                     iconObj.AddComponent<LayoutElement>().minHeight = 18;

@@ -60,8 +60,6 @@ namespace PocoRender.UI.Modules
             slhlg.spacing = 15; slhlg.padding = new RectOffset(20, 20, 0, 0); slhlg.childAlignment = TextAnchor.MiddleLeft; slhlg.childControlWidth = false;
 
             UIFactory.CreateText("Untitled Design", subLeft, 14, Color.black, Vector2.zero, new Vector2(150, 30), TextAnchor.MiddleLeft, FontStyle.Bold);
-            UIFactory.CreateButton("↶ Undo", subLeft, Vector2.zero, new Vector2(70, 30), new Color(0.95f, 0.95f, 0.95f), Color.black).GetComponent<Button>().onClick.AddListener(() => activeController?.Undo());
-            UIFactory.CreateButton("↷ Redo", subLeft, Vector2.zero, new Vector2(70, 30), new Color(0.95f, 0.95f, 0.95f), Color.black).GetComponent<Button>().onClick.AddListener(() => activeController?.Redo());
 
             // Middle side: Saved status (Center Area)
             GameObject subMid = UIFactory.CreateObject("SubMid", subToolbar);

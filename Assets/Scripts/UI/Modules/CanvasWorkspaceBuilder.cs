@@ -37,9 +37,36 @@ namespace PocoRender.UI.Modules
             ctrlBar.transform.SetAsLastSibling();
 
             HorizontalLayoutGroup hlg = ctrlBar.AddComponent<HorizontalLayoutGroup>();
-            hlg.spacing = 10; hlg.padding = new RectOffset(15, 15, 5, 5); hlg.childAlignment = TextAnchor.MiddleCenter;
+            hlg.spacing = 2; hlg.padding = new RectOffset(4, 8, 5, 5); hlg.childAlignment = TextAnchor.MiddleCenter;
 
-            UIFactory.CreateButton("-", ctrlBar, Vector2.zero, new Vector2(30, 30), Color.white, Color.black).GetComponent<Button>().onClick.AddListener(() => controller.ChangeZoom(-0.2f));
+            // Undo / Redo buttons (leftmost, compact)
+            Sprite undoSpr = Resources.Load<Sprite>("EditIcons/p_undo");
+            Sprite redoSpr = Resources.Load<Sprite>("EditIcons/p_redo");
+
+            GameObject undoBtn = UIFactory.CreateButton("", ctrlBar, Vector2.zero, new Vector2(20, 20), Color.white, Color.black);
+            LayoutElement undoLe = undoBtn.AddComponent<LayoutElement>(); undoLe.minWidth = 20; undoLe.preferredWidth = 20; undoLe.minHeight = 20; undoLe.preferredHeight = 20;
+            if (undoSpr != null) { Image ui = undoBtn.GetComponent<Image>(); ui.sprite = undoSpr; ui.type = Image.Type.Simple; ui.preserveAspect = true; ui.color = Color.white; }
+            else { var t = undoBtn.GetComponentInChildren<Text>(); if (t != null) t.text = "\u21A9"; }
+            undoBtn.GetComponent<Button>().onClick.AddListener(() => controller.Undo());
+            undoBtn.AddComponent<UITooltip>().text = "Undo";
+
+            GameObject redoBtn = UIFactory.CreateButton("", ctrlBar, Vector2.zero, new Vector2(20, 20), Color.white, Color.black);
+            LayoutElement redoLe = redoBtn.AddComponent<LayoutElement>(); redoLe.minWidth = 20; redoLe.preferredWidth = 20; redoLe.minHeight = 20; redoLe.preferredHeight = 20;
+            if (redoSpr != null) { Image ri = redoBtn.GetComponent<Image>(); ri.sprite = redoSpr; ri.type = Image.Type.Simple; ri.preserveAspect = true; ri.color = Color.white; }
+            else { var t = redoBtn.GetComponentInChildren<Text>(); if (t != null) t.text = "\u21AA"; }
+            redoBtn.GetComponent<Button>().onClick.AddListener(() => controller.Redo());
+            redoBtn.AddComponent<UITooltip>().text = "Redo";
+
+            // Separator (p_chart-v-line icon)
+            Sprite vLineSpr = Resources.Load<Sprite>("EditIcons/p_chart-v-line");
+            GameObject zSep = UIFactory.CreateObject("Sep", ctrlBar);
+            zSep.GetComponent<RectTransform>().sizeDelta = new Vector2(8, 20);
+            Image zSepImg = zSep.AddComponent<Image>();
+            if (vLineSpr != null) { zSepImg.sprite = vLineSpr; zSepImg.preserveAspect = true; zSepImg.color = new Color(0.7f, 0.7f, 0.7f); }
+            else { zSepImg.color = new Color(0.82f, 0.82f, 0.82f); }
+            LayoutElement zSepLe = zSep.AddComponent<LayoutElement>(); zSepLe.minWidth = 8; zSepLe.preferredWidth = 8;
+
+            UIFactory.CreateButton("-", ctrlBar, Vector2.zero, new Vector2(28, 28), Color.white, Color.black).GetComponent<Button>().onClick.AddListener(() => controller.ChangeZoom(-0.2f));
             
             GameObject ddObj = UIFactory.CreateObject("ZoomDropdown", ctrlBar);
             ddObj.AddComponent<LayoutElement>().minWidth = 70;
@@ -151,14 +178,26 @@ namespace PocoRender.UI.Modules
             });
 
             UIFactory.CreateButton("+", ctrlBar, Vector2.zero, new Vector2(30, 30), Color.white, Color.black).GetComponent<Button>().onClick.AddListener(() => controller.ChangeZoom(0.2f));
-            
-            Button hb = UIFactory.CreateButton("Hand \u270B", ctrlBar, Vector2.zero, new Vector2(80, 30), Color.white, Color.black).GetComponent<Button>();
+
+            // Separator between zoom and hand/fit (p_chart-v-line icon)
+            GameObject zSep2 = UIFactory.CreateObject("Sep2", ctrlBar);
+            zSep2.GetComponent<RectTransform>().sizeDelta = new Vector2(8, 20);
+            Image zSep2Img = zSep2.AddComponent<Image>();
+            if (vLineSpr != null) { zSep2Img.sprite = vLineSpr; zSep2Img.preserveAspect = true; zSep2Img.color = new Color(0.7f, 0.7f, 0.7f); }
+            else { zSep2Img.color = new Color(0.82f, 0.82f, 0.82f); }
+            LayoutElement zSep2Le = zSep2.AddComponent<LayoutElement>(); zSep2Le.minWidth = 8; zSep2Le.preferredWidth = 8;
+
+            Button hb = UIFactory.CreateButton("\u270B", ctrlBar, Vector2.zero, new Vector2(26, 26), Color.white, Color.black).GetComponent<Button>();
+            LayoutElement hbLe = hb.gameObject.AddComponent<LayoutElement>(); hbLe.minWidth = 26; hbLe.preferredWidth = 26; hbLe.minHeight = 26; hbLe.preferredHeight = 26;
+            hb.gameObject.AddComponent<UITooltip>().text = "Hand Tool";
             hb.onClick.AddListener(() => {
                 controller.ToggleHandTool(!controller.IsHandToolActive());
                 hb.GetComponent<Image>().color = controller.IsHandToolActive() ? new Color(0.8f, 1f, 0.8f) : Color.white;
             });
 
-            UIFactory.CreateButton("Fit", ctrlBar, Vector2.zero, new Vector2(50, 30), Color.white, Color.black).GetComponent<Button>().onClick.AddListener(() => controller.ZoomToFit());
+            GameObject fitBtn = UIFactory.CreateButton("Fit", ctrlBar, Vector2.zero, new Vector2(32, 26), Color.white, Color.black);
+            LayoutElement fitLe = fitBtn.AddComponent<LayoutElement>(); fitLe.minWidth = 32; fitLe.preferredWidth = 32; fitLe.minHeight = 26; fitLe.preferredHeight = 26;
+            fitBtn.GetComponent<Button>().onClick.AddListener(() => controller.ZoomToFit());
         }
 
         public static void CreateContextToolbar(GameObject workspace, CanvasController controller)
