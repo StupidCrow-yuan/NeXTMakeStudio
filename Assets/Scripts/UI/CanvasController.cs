@@ -1,10 +1,11 @@
+using System.Collections;
+using System.Collections.Generic;
+using System.IO;
 using UnityEngine;
 using UnityEngine.UI;
 using PocoRender.UI.Core;
-using System.Collections.Generic;
 using PocoRender.UI.TextureEffects;
 using PocoRender.Utils;
-using System.IO;
 using PocoRender.Communication;
 
 namespace PocoRender.UI
@@ -652,7 +653,7 @@ namespace PocoRender.UI
                 TextureEffects.U2NetBackgroundRemoval.Instance.Configure(u2Settings);
                 if (TextureEffects.U2NetBackgroundRemoval.Instance.IsReady)
                 {
-                    ApplyAIRemoveBackgroundU2Net(img);
+                    StartCoroutine(ApplyAIRemoveWithLoading(img, true));
                     return;
                 }
 #if HAS_SENTIS
@@ -664,7 +665,60 @@ namespace PocoRender.UI
                 UnityEngine.Debug.LogWarning("[AI Remove] U2NetSettings not found. It is auto-created at Resources/Models/U2NetSettings.asset on load; assign u2net ModelAsset to Base Onnx Model.");
 #endif
 
-            ApplyAIRemoveBackgroundBuiltIn(img);
+            StartCoroutine(ApplyAIRemoveWithLoading(img, false));
+        }
+
+        private GameObject aiRemoveLoadingOverlay;
+
+        private IEnumerator ApplyAIRemoveWithLoading(Image img, bool useU2Net)
+        {
+            // Show loading overlay
+            aiRemoveLoadingOverlay = CreateLoadingOverlay("AI Remove - Processing...");
+            yield return null; // let it render one frame
+
+            if (useU2Net)
+                ApplyAIRemoveBackgroundU2Net(img);
+            else
+                ApplyAIRemoveBackgroundBuiltIn(img);
+
+            // Destroy loading overlay
+            if (aiRemoveLoadingOverlay != null)
+            {
+                Destroy(aiRemoveLoadingOverlay);
+                aiRemoveLoadingOverlay = null;
+            }
+        }
+
+        private GameObject CreateLoadingOverlay(string message)
+        {
+            GameObject parent = editorArea != null ? editorArea : gameObject;
+
+            GameObject overlay = Core.UIFactory.CreateObject("AIRemoveLoading", parent);
+            Core.UIFactory.Stretch(overlay.GetComponent<RectTransform>());
+            overlay.AddComponent<Image>().color = new Color(0, 0, 0, 0.4f);
+            overlay.transform.SetAsLastSibling();
+
+            GameObject panel = Core.UIFactory.CreateObject("LoadingPanel", overlay);
+            RectTransform pRt = panel.GetComponent<RectTransform>();
+            pRt.sizeDelta = new Vector2(280, 100);
+            Image panelBg = panel.AddComponent<Image>();
+            panelBg.color = Color.white;
+            Sprite cardSprite = Core.UIFactory.CreateRoundedRectSprite(128, 64, 12);
+            if (cardSprite != null) { panelBg.sprite = cardSprite; panelBg.type = Image.Type.Sliced; }
+            panel.AddComponent<UnityEngine.UI.Outline>().effectColor = new Color(0.85f, 0.85f, 0.85f);
+
+            VerticalLayoutGroup vlg = panel.AddComponent<VerticalLayoutGroup>();
+            vlg.padding = new RectOffset(20, 20, 20, 20);
+            vlg.spacing = 10;
+            vlg.childAlignment = TextAnchor.MiddleCenter;
+            vlg.childControlWidth = true;
+            vlg.childControlHeight = true;
+            vlg.childForceExpandHeight = false;
+
+            Core.UIFactory.CreateText(message, panel, 14, new Color(0.2f, 0.2f, 0.2f),
+                Vector2.zero, Vector2.zero, TextAnchor.MiddleCenter);
+
+            return overlay;
         }
 
         private void ApplyAIRemoveBackgroundU2Net(Image img)
