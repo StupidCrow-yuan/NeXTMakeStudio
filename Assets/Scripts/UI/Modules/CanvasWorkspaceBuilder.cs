@@ -198,7 +198,11 @@ namespace PocoRender.UI.Modules
             sep.AddComponent<Image>().color = new Color(0.82f, 0.82f, 0.82f);
             sep.AddComponent<LayoutElement>().minWidth = 1;
 
-            string[] tools = { "UpScaler", "AI Remover", "Cutout", "Outline" };
+            // AI Remove (before UpScaler): icon + English label "AI Remove", applies background removal
+            Button aiRemoveBtn = CreateToolbarIconButton(ct, "EditIcons/p_ai_remove", "AI Remove");
+            aiRemoveBtn.onClick.AddListener(() => controller.ApplyAIRemoveBackground());
+
+            string[] tools = { "UpScaler", "Cutout", "Outline" };
             foreach (var tool in tools)
                 UIFactory.CreateButton(tool, ct, Vector2.zero, new Vector2(0, 30), Color.white, Color.black).AddComponent<LayoutElement>().flexibleWidth = 1;
 

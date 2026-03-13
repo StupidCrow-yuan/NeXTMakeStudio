@@ -633,6 +633,115 @@ namespace PocoRender.UI
             return fallback;
         }
 
+        /// <summary>
+        /// AI Remove: U2-Net (Resources/U2NetSettings + u2net.onnx) or built-in corner color.
+        /// </summary>
+        public void ApplyAIRemoveBackground()
+        {
+            if (currentSelection == null) return;
+            Image img = currentSelection.GetComponent<Image>();
+            if (img == null || img.sprite == null)
+            {
+                ShowInfoPopup("Select an image layer first");
+                return;
+            }
+
+            var u2Settings = TextureEffects.U2NetSettings.Load();
+            if (u2Settings != null && u2Settings.IsValid)
+            {
+                TextureEffects.U2NetBackgroundRemoval.Instance.Configure(u2Settings);
+                if (TextureEffects.U2NetBackgroundRemoval.Instance.IsReady)
+                {
+                    ApplyAIRemoveBackgroundU2Net(img);
+                    return;
+                }
+#if HAS_SENTIS
+                UnityEngine.Debug.LogWarning("[AI Remove] U2-Net worker not ready. See Console for [U2Net] messages.");
+#endif
+            }
+#if HAS_SENTIS
+            else if (u2Settings == null)
+                UnityEngine.Debug.LogWarning("[AI Remove] U2NetSettings not found. It is auto-created at Resources/Models/U2NetSettings.asset on load; assign u2net ModelAsset to Base Onnx Model.");
+#endif
+
+            ApplyAIRemoveBackgroundBuiltIn(img);
+        }
+
+        private void ApplyAIRemoveBackgroundU2Net(Image img)
+        {
+            Texture2D srcTex = TextureEffects.SpriteTextureUtil.ExtractSpriteTexture(img.sprite, 0);
+            if (srcTex == null)
+            {
+                ApplyAIRemoveBackgroundBuiltIn(img);
+                return;
+            }
+
+            Texture2D resultTex = TextureEffects.U2NetBackgroundRemoval.Instance.RemoveBackground(srcTex);
+            if (resultTex == null)
+            {
+                ApplyAIRemoveBackgroundBuiltIn(img);
+                return;
+            }
+
+            Sprite oldSprite = img.sprite;
+            Sprite newSprite = Sprite.Create(resultTex, new Rect(0, 0, resultTex.width, resultTex.height), new Vector2(0.5f, 0.5f), 100f, 0, SpriteMeshType.FullRect);
+            img.sprite = newSprite;
+            img.preserveAspect = true;
+            img.color = Color.white;
+            var cmd = new EraseCommand(img, oldSprite, newSprite, null);
+            commandHistory.AddToHistory(cmd);
+        }
+
+        private void ApplyAIRemoveBackgroundBuiltIn(Image img)
+        {
+            Texture2D srcTex = TextureEffects.SpriteTextureUtil.ExtractSpriteTexture(img.sprite, 0);
+            if (srcTex == null) return;
+
+            int w = srcTex.width;
+            int h = srcTex.height;
+            Color[] pixels = srcTex.GetPixels();
+
+            Color c00 = pixels[0];
+            Color c10 = pixels[(h - 1) * w];
+            Color c01 = pixels[w - 1];
+            Color c11 = pixels[h * w - 1];
+            Color bg = (c00 + c10 + c01 + c11) * 0.25f;
+
+            float tolerance = 0.38f;
+            float toleranceSq = tolerance * tolerance;
+
+            for (int i = 0; i < pixels.Length; i++)
+            {
+                Color c = pixels[i];
+                float dr = c.r - bg.r, dg = c.g - bg.g, db = c.b - bg.b;
+                float distSq = dr * dr + dg * dg + db * db;
+                float a = c.a;
+                if (distSq <= toleranceSq)
+                    a = 0f;
+                else
+                {
+                    float dist = Mathf.Sqrt(distSq);
+                    if (dist < tolerance * 1.5f)
+                        a *= Mathf.Clamp01((dist - tolerance) / (tolerance * 0.5f));
+                }
+                pixels[i] = new Color(c.r, c.g, c.b, a);
+            }
+
+            Texture2D resultTex = new Texture2D(w, h, TextureFormat.RGBA32, false, true);
+            resultTex.SetPixels(pixels);
+            resultTex.Apply();
+
+            Sprite oldSprite = img.sprite;
+            Sprite newSprite = Sprite.Create(resultTex, new Rect(0, 0, w, h), new Vector2(0.5f, 0.5f), 100f, 0, SpriteMeshType.FullRect);
+            img.sprite = newSprite;
+            img.preserveAspect = true;
+            img.color = Color.white;
+
+            var cmd = new EraseCommand(img, oldSprite, newSprite, null);
+            commandHistory.AddToHistory(cmd);
+
+        }
+
         // ---- Adjustment Panel ----
 
         public void ToggleAdjustmentPanel()
