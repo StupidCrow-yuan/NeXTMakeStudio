@@ -531,7 +531,8 @@ namespace PocoRender.UI.Modules
                 valueTexts[idx] = valText;
 
                 Slider slider = sliderObj.GetComponent<Slider>();
-                slider.minValue = -100;
+                bool isSharpness = (idx == paramNames.Length - 1);
+                slider.minValue = isSharpness ? 0 : -100;
                 slider.maxValue = 100;
                 slider.wholeNumbers = true;
                 slider.value = 0;
@@ -540,7 +541,7 @@ namespace PocoRender.UI.Modules
                 slider.onValueChanged.AddListener((v) =>
                 {
                     valText.text = Mathf.RoundToInt(v).ToString();
-                    controller.ApplyAdjustments();
+                    controller.ScheduleAdjustment();
                 });
             }
 
@@ -569,7 +570,6 @@ namespace PocoRender.UI.Modules
 
             Sprite trackSprite = UIFactory.CreateRoundedRectSprite(64, 8, 4);
 
-            // Thin track background (3px tall, centered)
             GameObject bgTrack = UIFactory.CreateObject("Background", sliderObj);
             RectTransform bgRt = bgTrack.GetComponent<RectTransform>();
             bgRt.anchorMin = new Vector2(0, 0.5f); bgRt.anchorMax = new Vector2(1, 0.5f);
@@ -578,7 +578,7 @@ namespace PocoRender.UI.Modules
             bgImg.color = new Color(0.88f, 0.88f, 0.88f);
             if (trackSprite != null) { bgImg.sprite = trackSprite; bgImg.type = Image.Type.Sliced; }
 
-            // Green fill bar from center
+            // Green center fill (from zero-point to handle)
             GameObject centerFill = UIFactory.CreateObject("CenterFill", sliderObj);
             RectTransform cfRt = centerFill.GetComponent<RectTransform>();
             cfRt.anchorMin = new Vector2(0.5f, 0.5f); cfRt.anchorMax = new Vector2(0.5f, 0.5f);
@@ -591,14 +591,13 @@ namespace PocoRender.UI.Modules
             GameObject fillArea = UIFactory.CreateObject("Fill Area", sliderObj);
             RectTransform faRt = fillArea.GetComponent<RectTransform>();
             faRt.anchorMin = new Vector2(0, 0.5f); faRt.anchorMax = new Vector2(1, 0.5f);
-            faRt.sizeDelta = new Vector2(0, 3);
+            faRt.sizeDelta = new Vector2(-14, 3);
             GameObject fill = UIFactory.CreateObject("Fill", fillArea);
             RectTransform fillRt = fill.GetComponent<RectTransform>();
             fillRt.anchorMin = Vector2.zero; fillRt.anchorMax = new Vector2(0, 1);
             fillRt.sizeDelta = Vector2.zero;
             fill.AddComponent<Image>().color = new Color(0, 0, 0, 0);
 
-            // Handle area - full height for round handle
             GameObject handleArea = UIFactory.CreateObject("Handle Slide Area", sliderObj);
             RectTransform haRt = handleArea.GetComponent<RectTransform>();
             haRt.anchorMin = Vector2.zero; haRt.anchorMax = Vector2.one;
@@ -623,6 +622,7 @@ namespace PocoRender.UI.Modules
             AdjustmentCenterFill acf = sliderObj.AddComponent<AdjustmentCenterFill>();
             acf.slider = slider;
             acf.centerFillRect = cfRt;
+            acf.trackRect = bgRt;
 
             return sliderObj;
         }

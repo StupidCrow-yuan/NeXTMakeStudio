@@ -25,6 +25,8 @@ namespace PocoRender.UI
         public Text[] adjustmentValueTexts;
         private Texture2D adjustmentOriginalTexture;
         private Sprite adjustmentOriginalSprite;
+        private float adjustmentDebounceTimer = -1f;
+        private const float ADJUSTMENT_DEBOUNCE = 0.12f;
         public GameObject leftDrawer;
         private string lastDrawerPanel = "Templates";
         
@@ -707,111 +709,133 @@ namespace PocoRender.UI
             ApplyAdjustments();
         }
 
+        public void ScheduleAdjustment()
+        {
+            adjustmentDebounceTimer = ADJUSTMENT_DEBOUNCE;
+        }
+
         public void ApplyAdjustments()
         {
             if (currentSelection == null || adjustmentOriginalTexture == null) return;
             Image img = currentSelection.GetComponent<Image>();
             if (img == null) return;
 
-            float brightness = adjustmentSliders[0].value / 100f;
+            float brightness = adjustmentSliders[0].value / 100f;  // -1 to +1
             float contrast   = adjustmentSliders[1].value / 100f;
             float saturation = adjustmentSliders[2].value / 100f;
-            float hue        = adjustmentSliders[3].value / 100f;
+            float hueShift   = adjustmentSliders[3].value / 200f;  // -0.5 to +0.5 (±180°)
             float temperature= adjustmentSliders[4].value / 100f;
             float tint       = adjustmentSliders[5].value / 100f;
             float highlights  = adjustmentSliders[6].value / 100f;
             float shadows     = adjustmentSliders[7].value / 100f;
-            float sharpness   = adjustmentSliders[8].value / 100f;
+            float sharpness   = adjustmentSliders[8].value / 100f;  // 0 to 1
 
             int w = adjustmentOriginalTexture.width;
             int h = adjustmentOriginalTexture.height;
             Color[] srcPixels = adjustmentOriginalTexture.GetPixels();
             Color[] dstPixels = new Color[srcPixels.Length];
 
-            // Exposure-style brightness: multiply by 2^(brightness*2)
-            // At slider 0 → 1x, at +100 → 4x, at -100 → 0.25x
-            float brightMul = Mathf.Pow(2f, brightness * 2f);
+            // Brightness: gamma-style curve. +100 → bright, -100 → dark, no fog.
+            // gamma = 1/(1 + brightness) for positive, (1 - brightness) for negative
+            float gamma;
+            if (brightness >= 0f)
+                gamma = 1f / (1f + brightness * 2f);  // +100 → gamma 0.33 (brighter)
+            else
+                gamma = 1f - brightness * 2f;          // -100 → gamma 3.0 (darker)
 
-            // Contrast: smooth S-curve. At 0 → 1x, at +1 → ~1.5x, at -1 → ~0.5x
-            float contrastFactor = Mathf.Max(0.01f, 1f + contrast);
+            // Contrast: stronger curve using pow. +100 → very punchy, -100 → flat gray
+            // factor: at 0→1, at +1→3, at -1→0.33
+            float contrastFactor = Mathf.Pow(3f, contrast);
 
-            float satMul = 1f + saturation;
+            float satMul = 1f + saturation * 2f;  // -100→-1(desat), 0→1(normal), +100→3(vivid)
 
             for (int i = 0; i < srcPixels.Length; i++)
             {
                 Color c = srcPixels[i];
                 float r = c.r, g = c.g, b = c.b, a = c.a;
 
-                // Brightness (multiplicative, preserves blacks)
-                r *= brightMul; g *= brightMul; b *= brightMul;
+                // Brightness via gamma curve - preserves blacks, no fog
+                if (Mathf.Abs(brightness) > 0.001f)
+                {
+                    r = Mathf.Pow(Mathf.Max(0f, r), gamma);
+                    g = Mathf.Pow(Mathf.Max(0f, g), gamma);
+                    b = Mathf.Pow(Mathf.Max(0f, b), gamma);
+                }
 
                 // Contrast (pivot at mid-gray 0.5)
-                r = (r - 0.5f) * contrastFactor + 0.5f;
-                g = (g - 0.5f) * contrastFactor + 0.5f;
-                b = (b - 0.5f) * contrastFactor + 0.5f;
+                if (Mathf.Abs(contrast) > 0.001f)
+                {
+                    r = (r - 0.5f) * contrastFactor + 0.5f;
+                    g = (g - 0.5f) * contrastFactor + 0.5f;
+                    b = (b - 0.5f) * contrastFactor + 0.5f;
+                }
 
-                // Saturation
-                float lum = 0.2126f * r + 0.7152f * g + 0.0722f * b;
-                r = lum + (r - lum) * satMul;
-                g = lum + (g - lum) * satMul;
-                b = lum + (b - lum) * satMul;
+                // Saturation (lerp toward/away from luminance)
+                if (Mathf.Abs(saturation) > 0.001f)
+                {
+                    float lum = 0.2126f * r + 0.7152f * g + 0.0722f * b;
+                    r = lum + (r - lum) * satMul;
+                    g = lum + (g - lum) * satMul;
+                    b = lum + (b - lum) * satMul;
+                }
 
-                // Hue rotation
-                if (Mathf.Abs(hue) > 0.001f)
+                // Hue rotation (±180°)
+                if (Mathf.Abs(hueShift) > 0.001f)
                 {
                     float hVal, sVal, vVal;
                     Color.RGBToHSV(new Color(Mathf.Clamp01(r), Mathf.Clamp01(g), Mathf.Clamp01(b)),
                         out hVal, out sVal, out vVal);
-                    hVal = (hVal + hue + 1f) % 1f;
+                    hVal = ((hVal + hueShift) % 1f + 1f) % 1f;
                     Color hsv = Color.HSVToRGB(hVal, sVal, vVal);
                     r = hsv.r; g = hsv.g; b = hsv.b;
                 }
 
-                // Temperature (warm/cool white balance)
+                // Temperature: positive = warm (more orange), negative = cool (more blue)
                 if (Mathf.Abs(temperature) > 0.001f)
                 {
-                    float t = temperature * 0.15f;
+                    float t = temperature * 0.2f;
                     r += t;
-                    g += t * 0.4f;
+                    g += t * 0.1f;
                     b -= t;
                 }
 
-                // Tint (green-magenta axis)
+                // Tint: positive = magenta/pink, negative = green
                 if (Mathf.Abs(tint) > 0.001f)
                 {
-                    float ti = tint * 0.15f;
-                    g += ti;
-                    r -= ti * 0.5f;
-                    b -= ti * 0.5f;
+                    float ti = tint * 0.2f;
+                    r += ti * 0.5f;
+                    g -= ti;
+                    b += ti * 0.5f;
                 }
 
-                // Highlights (affect bright areas only)
+                // Highlights: brighten/darken only bright areas
                 if (Mathf.Abs(highlights) > 0.001f)
                 {
-                    float hl = 0.2126f * Mathf.Clamp01(r) + 0.7152f * Mathf.Clamp01(g) + 0.0722f * Mathf.Clamp01(b);
-                    float mask = Mathf.SmoothStep(0f, 1f, hl);
-                    float adj = highlights * mask * 0.4f;
+                    float lum = Mathf.Clamp01(0.2126f * r + 0.7152f * g + 0.0722f * b);
+                    float mask = lum * lum;  // quadratic: strongly biased toward brights
+                    float adj = highlights * mask;
                     r += adj; g += adj; b += adj;
                 }
 
-                // Shadows (affect dark areas only)
+                // Shadows: brighten/darken only dark areas
                 if (Mathf.Abs(shadows) > 0.001f)
                 {
-                    float sl = 0.2126f * Mathf.Clamp01(r) + 0.7152f * Mathf.Clamp01(g) + 0.0722f * Mathf.Clamp01(b);
-                    float mask = Mathf.SmoothStep(1f, 0f, sl);
-                    float adj = shadows * mask * 0.4f;
+                    float lum = Mathf.Clamp01(0.2126f * r + 0.7152f * g + 0.0722f * b);
+                    float invLum = 1f - lum;
+                    float mask = invLum * invLum;  // quadratic: strongly biased toward darks
+                    float adj = shadows * mask;
                     r += adj; g += adj; b += adj;
                 }
 
                 dstPixels[i] = new Color(Mathf.Clamp01(r), Mathf.Clamp01(g), Mathf.Clamp01(b), a);
             }
 
-            // Sharpness (unsharp mask)
-            if (Mathf.Abs(sharpness) > 0.01f)
+            // Sharpness (unsharp mask with 5-tap kernel)
+            if (sharpness > 0.01f)
             {
                 Color[] sharpened = new Color[dstPixels.Length];
                 System.Array.Copy(dstPixels, sharpened, dstPixels.Length);
-                float strength = sharpness * 2f;
+                float strength = sharpness * 5f;  // stronger effect at max
                 for (int y = 1; y < h - 1; y++)
                 {
                     for (int x = 1; x < w - 1; x++)
@@ -1887,6 +1911,17 @@ namespace PocoRender.UI
             {
                 RecordDelete(currentSelection);
                 Deselect();
+            }
+
+            // Debounced adjustment apply
+            if (adjustmentDebounceTimer > 0f)
+            {
+                adjustmentDebounceTimer -= Time.unscaledDeltaTime;
+                if (adjustmentDebounceTimer <= 0f)
+                {
+                    adjustmentDebounceTimer = -1f;
+                    ApplyAdjustments();
+                }
             }
 
             // 2. Debounced mini preview rebuild after window resize stops.
