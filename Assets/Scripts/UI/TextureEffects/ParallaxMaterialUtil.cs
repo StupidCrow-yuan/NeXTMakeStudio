@@ -12,9 +12,14 @@ namespace PocoRender.UI.TextureEffects
 
             Material m = new Material(shader);
             SetMaterialTransparent(m);
-            m.color = Color.white;
 
+            // Use Emission for the base color so it is 100% immune to scene ambient lighting
+            // Set Albedo to black so diffuse lighting doesn't add any unwanted color shifts
+            m.color = Color.black;
             m.mainTexture = mainTex;
+            m.EnableKeyword("_EMISSION");
+            m.SetTexture("_EmissionMap", mainTex);
+            m.SetColor("_EmissionColor", Color.white);
 
             if (heightMap != null)
             {
@@ -31,8 +36,8 @@ namespace PocoRender.UI.TextureEffects
                 m.SetFloat("_Parallax", parallax);
             }
 
-            // Reduce glossy look for clearer relief
-            m.SetFloat("_Glossiness", 0.0f);
+            // Keep enough glossiness so the moving spotlight creates a visible specular highlight
+            m.SetFloat("_Glossiness", 0.3f);
             m.SetFloat("_Metallic", 0.0f);
             return m;
         }

@@ -2072,8 +2072,11 @@ namespace PocoRender.UI
             paperPlane.transform.localRotation = Quaternion.Euler(90, 0, 0);
             Material paperMat = SafeShaderHelper.CreateStandardMaterial();
             if (paperMat == null) paperMat = paperPlane.GetComponent<Renderer>().material;
-            paperMat.color = Color.white;
-            if (paperMat.HasProperty("_Glossiness")) paperMat.SetFloat("_Glossiness", 0f);
+            // Use Emission for base color so it's 100% accurate to UI white without relying on ambient light
+            paperMat.color = Color.black; 
+            paperMat.EnableKeyword("_EMISSION");
+            paperMat.SetColor("_EmissionColor", Color.white);
+            if (paperMat.HasProperty("_Glossiness")) paperMat.SetFloat("_Glossiness", 0.1f);
             if (paperMat.HasProperty("_Metallic")) paperMat.SetFloat("_Metallic", 0f);
             paperPlane.GetComponent<Renderer>().material = paperMat;
 
@@ -2184,13 +2187,17 @@ namespace PocoRender.UI
 
                     Material mat = SafeShaderHelper.CreateStandardMaterial();
                     if (mat == null) mat = new Material(Shader.Find("Sprites/Default"));
-                    if (mat.HasProperty("_Glossiness")) mat.SetFloat("_Glossiness", 0f);
+                    if (mat.HasProperty("_Glossiness")) mat.SetFloat("_Glossiness", 0.3f);
                     if (mat.HasProperty("_Metallic")) mat.SetFloat("_Metallic", 0f);
 
                     if (selImg != null && selImg.sprite != null && selImg.sprite.texture != null)
                     {
                         mat.mainTexture = selImg.sprite.texture;
-                        mat.color = selImg.color;
+                        // Use Emission to perfectly preserve original texture colors, regardless of scene lights
+                        mat.color = Color.black; 
+                        mat.EnableKeyword("_EMISSION");
+                        mat.SetTexture("_EmissionMap", selImg.sprite.texture);
+                        mat.SetColor("_EmissionColor", selImg.color);
 
                         // FIX: Configure Standard Shader for Transparency if texture has alpha
                         if (mat.shader.name == "Standard")
@@ -2210,7 +2217,9 @@ namespace PocoRender.UI
                     else if (selImg != null)
                     {
                         // Pure color block
-                        mat.color = selImg.color;
+                        mat.color = Color.black;
+                        mat.EnableKeyword("_EMISSION");
+                        mat.SetColor("_EmissionColor", selImg.color);
                     }
                     else
                     {
@@ -2228,17 +2237,9 @@ namespace PocoRender.UI
             // brings a local area to full brightness -> visible texture detail highlight.
             Vector3 contentCenterLocal = new Vector3(0f, 0.06f, 0f);
 
-            // Directional key light: high enough so texture colours closely match the canvas
-            GameObject keyLightObj = new GameObject("KeyLight");
-            keyLightObj.transform.SetParent(miniDesignStage.transform);
-            keyLightObj.transform.rotation = Quaternion.Euler(50, 30, 0);
-            Light keyLight = keyLightObj.AddComponent<Light>();
-            keyLight.type = LightType.Directional;
-            keyLight.color = Color.white;
-            keyLight.intensity = 0.85f;
-            keyLight.cullingMask = -1;
-            SetLayerRecursive(keyLightObj, previewLayer);
-
+            // Directional key light is removed: we rely entirely on Emission for perfect base color,
+            // and the moving spotlight provides the glossy highlights.
+            
             GameObject lightObj = new GameObject("MovingLight");
             lightObj.transform.SetParent(miniDesignStage.transform);
             Light l = lightObj.AddComponent<Light>();
@@ -2270,12 +2271,11 @@ namespace PocoRender.UI
                 miniModelViewer.sceneLight.enabled = false;
             }
 
-            // Ambient high enough for faithful colour reproduction; the moving spotlight
-            // still creates a subtle highlight sweep on top of the base illumination.
-            RenderSettings.ambientMode = UnityEngine.Rendering.AmbientMode.Trilight;
-            RenderSettings.ambientSkyColor = new Color(0.55f, 0.55f, 0.55f, 1f);
-            RenderSettings.ambientEquatorColor = new Color(0.50f, 0.50f, 0.50f, 1f);
-            RenderSettings.ambientGroundColor = new Color(0.45f, 0.45f, 0.45f, 1f);
+            // Ambient light set to black: we don't need scene ambient light because
+            // all materials use Emission for their base color. This perfectly prevents
+            // ANY tinting or washing out from the environment.
+            RenderSettings.ambientMode = UnityEngine.Rendering.AmbientMode.Flat;
+            RenderSettings.ambientLight = Color.black;
             
             miniModelViewer.RequestRender(5);
         }
