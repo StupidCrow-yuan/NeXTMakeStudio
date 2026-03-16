@@ -12,7 +12,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: fdf24099655e6d1418265e3bc76ad2e7, type: 3}
   m_Name: DepthAnythingV2Settings
   m_EditorClassIdentifier: 
-  baseOnnxModel: {fileID: 5022602860645237092, guid: cc2b066407b3a3541968d5c2dd590f4a, type: 3}
+  baseOnnxModel: {fileID: 0}
   inputName: image
   outputName: predicted_depth
   inputSize: 384

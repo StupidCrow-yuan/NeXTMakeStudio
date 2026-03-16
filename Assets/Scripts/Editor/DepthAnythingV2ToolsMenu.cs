@@ -5,8 +5,8 @@ namespace PocoRender.UI.EditorTools
 {
     public static class DepthAnythingV2ToolsMenu
     {
-        private const string VitsPath = "Assets/Resources/Models/DepthAnythingV2/depth_anything_v2_vits.onnx";
-        private const string VitbPath = "Assets/Resources/Models/DepthAnythingV2/depth_anything_v2_vitb.onnx";
+        private const string VitsPath = "Assets/Resources/Models/depth_anything_v2_vits.onnx";
+        private const string VitbPath = "Assets/Resources/Models/depth_anything_v2_vitb.onnx";
 
         [MenuItem("Tools/DepthAnythingV2/Force Bind Settings Model")]
         private static void ForceBind()
@@ -32,7 +32,14 @@ namespace PocoRender.UI.EditorTools
             var mainObj = AssetDatabase.LoadMainAssetAtPath(path);
             string mainTypeName = mainType != null ? mainType.FullName : "(null)";
             string mainObjTypeName = mainObj != null ? mainObj.GetType().FullName : "(null)";
-            Debug.Log($"[DepthAnythingV2] ONNX asset='{path}' mainAssetType={mainTypeName} mainObjType={mainObjTypeName}");
+            Debug.Log($"[DepthAnythingV2] ONNX asset='{path}'\n  mainAssetType={mainTypeName}\n  mainObjType={mainObjTypeName}");
+
+            var allAssets = AssetDatabase.LoadAllAssetsAtPath(path);
+            Debug.Log($"[DepthAnythingV2] '{path}' has {allAssets.Length} sub-assets.");
+            foreach (var a in allAssets)
+            {
+                if (a != null) Debug.Log($"   - subAsset: {a.name} ({a.GetType().FullName})");
+            }
 
 #if HAS_SENTIS
             var model = AssetDatabase.LoadAssetAtPath<Unity.Sentis.ModelAsset>(path);
